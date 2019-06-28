@@ -5,9 +5,6 @@
 #include "config.h"
 #include "server.h"
 
-#define BUFFER_SIZE 1024
-#define TRANSFER_MSG   "transfer_end"
-
 conf cf;
 static int server_sock_fd = -1;
 static int event_poll_fd = -1;
@@ -95,7 +92,7 @@ void cancel_event_poll(int fd)
                 fclose(client_fp[client_i]);
                 client_fp[client_i] = NULL;
             }
-            LOG("one client quit, fd is %d", fd);
+            LOG("client fd is %d, quit!", fd);
             break;
         }
     }
@@ -103,7 +100,7 @@ void cancel_event_poll(int fd)
 
 void do_event_poll()
 {
-    char client_msg[BUFFER_SIZE];
+    package pkg;
     struct epoll_event event_poll_event[event_poll_size];
     int timeout = 20 * 1000;
     while(1)
@@ -135,8 +132,8 @@ void do_event_poll()
                 else
                 {
                     // 处理某个客户端过来的消息
-                    long client_msg_size = recv_from_client(event_poll_event[i].data.fd, client_msg, BUFFER_SIZE);
-                    if(client_msg_size > 0)
+                    int receive_ret = receive_from_client(event_poll_event[i].data.fd, &pkg);
+                    if(receive_ret == 0)
                     {
                         for(int client_i = 0;client_i < CLIENT_MAX;client_i++)
                         {
@@ -144,41 +141,41 @@ void do_event_poll()
                             {
                                 if(client_fp[client_i] == NULL)
                                 {
-                                    FILE *fp = fopen(client_msg, "wb");
+                                    FILE *fp = fopen(pkg.content, "wb");
                                     if(fp == NULL)
                                     {
-                                        printf("客户端(%d), create file failed:%s\n", client_i, client_msg);
+                                        LOG("client fd is %d, create file failed: %s", client_fd[client_i], pkg.content);
                                     }
                                     else
                                     {
                                         client_fp[client_i] = fp;
-                                        send(client_fd[client_i], TRANSFER_MSG, strlen(TRANSFER_MSG), 0);
+                                        send(client_fd[client_i], CIPHER, strlen(CIPHER), 0);
                                     }
                                 }
                                 else
                                 {
-                                    if(strncmp(client_msg, TRANSFER_MSG, strlen(TRANSFER_MSG)) == 0)
+                                    if(strncmp(pkg.content, CIPHER, strlen(CIPHER)) == 0)
                                     {
                                         fclose(client_fp[client_i]);
                                         client_fp[client_i] = NULL;
-                                        printf("transfer end\n");
+                                        LOG("client fd is %d, write file successfully!", client_fd[client_i]);
                                     }
                                     else
                                     {
-                                        fwrite(client_msg, 1, client_msg_size, client_fp[client_i]);
+                                        fwrite(pkg.content, 1, pkg.size, client_fp[client_i]);
                                     }
                                 }
                                 break;
                             }
                         }
                     }
-                    else if(client_msg_size < 0)
+                    else if(receive_ret == -2)
                     {
                         for(int client_i = 0;client_i < CLIENT_MAX;client_i++)
                         {
                             if(client_fd[client_i] == event_poll_event[i].data.fd)
                             {
-                                printf("从客户端(%d)接受消息出错.\n", client_i);
+                                LOG("client fd is %d, receive message failed!", client_fd[client_i]);
                                 break;
                             }
                         }
@@ -195,6 +192,13 @@ void do_event_poll()
 
 int main(int argc, const char * argv[])
 {
+    if(argc != 2)
+    {
+        fprintf(stderr, "please input conf path!\n");
+        exit(-1);
+    }
+
+    config(argv[1]);
     init_server_socket();
     init_event_poll_fd();
     init_client();

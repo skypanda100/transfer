@@ -6,8 +6,15 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <unistd.h>
-#define BUFFER_SIZE 1024
-#define TRANSFER_MSG   "transfer_end"
+#define CONTENT_SIZE    1024
+#define BUFFER_SIZE     sizeof(int) + CONTENT_SIZE
+#define CIPHER          "@mtt@ is my cat"
+
+typedef struct st_package
+{
+    int size;
+    char content[CONTENT_SIZE];
+}package;
 
 int main(int argc, const char * argv[])
 {
@@ -26,6 +33,7 @@ int main(int argc, const char * argv[])
     char recv_msg[BUFFER_SIZE];
     char input_msg[BUFFER_SIZE];
     char buffer[BUFFER_SIZE] = {0};
+    char content[CONTENT_SIZE] = {0};
     FILE *fp = NULL;
     if(connect(server_sock_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_in)) == 0)
     {
@@ -56,7 +64,12 @@ int main(int argc, const char * argv[])
                         break;
                     }
                 }
-                if(send(server_sock_fd, input_msg, BUFFER_SIZE, 0) == -1)
+                bzero(buffer, BUFFER_SIZE);
+                bzero(content, CONTENT_SIZE);
+                int len = strlen(input_msg);
+                memcpy(buffer, &len, sizeof(int));
+                memcpy(buffer + sizeof(int), input_msg, len);
+                if(send(server_sock_fd, buffer, BUFFER_SIZE, 0) == -1)
                 {
                     perror("发送path消息出错!\n");
                 }
@@ -71,14 +84,17 @@ int main(int argc, const char * argv[])
                 long byte_num = recv(server_sock_fd, recv_msg, BUFFER_SIZE, 0);
                 if(byte_num > 0)
                 {
-                    if(strncmp(recv_msg, TRANSFER_MSG, strlen(TRANSFER_MSG)) == 0)
+                    if(strncmp(recv_msg, CIPHER, strlen(CIPHER)) == 0)
                     {
                         if(fp != NULL)
                         {
                             while(!feof(fp))
                             {
                                 bzero(buffer, BUFFER_SIZE);
-                                int len = fread(buffer, 1, BUFFER_SIZE, fp);
+                                bzero(content, CONTENT_SIZE);
+                                int len = fread(content, 1, CONTENT_SIZE, fp);
+                                memcpy(buffer, &len, sizeof(int));
+                                memcpy(buffer + sizeof(int), content, CONTENT_SIZE);
                                 if(send(server_sock_fd, buffer, len, 0) == -1)
                                 {
                                     printf("send failed\n");
@@ -88,7 +104,12 @@ int main(int argc, const char * argv[])
                             fclose(fp);
                             fp = NULL;
 
-                            if(send(server_sock_fd, TRANSFER_MSG, BUFFER_SIZE, 0) == -1)
+                            bzero(buffer, BUFFER_SIZE);
+                            bzero(content, CONTENT_SIZE);
+                            int len = strlen(CIPHER);
+                            memcpy(buffer, &len, sizeof(int));
+                            memcpy(buffer + sizeof(int), CIPHER, len);
+                            if(send(server_sock_fd, buffer, BUFFER_SIZE, 0) == -1)
                             {
                                 perror("发送transfer end消息出错!\n");
                             }

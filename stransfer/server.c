@@ -47,9 +47,28 @@ int get_client_socket(int server_sock_fd)
     return client_sock_fd;
 }
 
-long recv_from_client(int client_sock_fd, char *buffer_ptr, size_t buffer_size)
+int receive_from_client(int client_sock_fd, package *pkg_ptr)
 {
-    bzero(buffer_ptr, buffer_size);
-    long client_msg_size = recv(client_sock_fd, buffer_ptr, buffer_size, 0);
-    return client_msg_size;
+    memset(pkg_ptr, 0, sizeof(package));
+    char client_msg[BUFFER_SIZE] = {0};
+    long client_msg_size = recv(client_sock_fd, client_msg, BUFFER_SIZE, 0);
+    printf("%d\n", client_msg_size);
+    if(client_msg_size == 0)
+    {
+        // close
+        return -1;
+    }
+    else if(client_msg_size != BUFFER_SIZE)
+    {
+        // error
+        return -2;
+    }
+    else
+    {
+        // normal
+        memcpy(&(pkg_ptr->size), client_msg, sizeof(int));
+        memcpy(&(pkg_ptr->content), client_msg + sizeof(int), CONTENT_SIZE);
+    }
+
+    return 0;
 }

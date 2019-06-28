@@ -9,9 +9,17 @@
 #include <sys/inotify.h>
 #include "log.h"
 
-#define BUFFER_SIZE     1024
+#define CONTENT_SIZE    1024
+#define BUFFER_SIZE     sizeof(int) + CONTENT_SIZE
 #define BACKLOG         64
 #define CLIENT_MAX      1024
+#define CIPHER          "@mtt@ is my cat"
+
+typedef struct st_package
+{
+    int size;
+    char content[CONTENT_SIZE];
+}package;
 
 typedef struct st_conf
 {
