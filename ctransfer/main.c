@@ -6,7 +6,6 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
 #define BUFFER_SIZE 1024
 #define TRANSFER_MSG   "transfer_end"
 
@@ -14,7 +13,7 @@ int main(int argc, const char * argv[])
 {
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(80);
+    server_addr.sin_port = htons(11332);
     server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     bzero(&(server_addr.sin_zero), 8);
 
@@ -26,8 +25,8 @@ int main(int argc, const char * argv[])
     }
     char recv_msg[BUFFER_SIZE];
     char input_msg[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE] = {0};
     FILE *fp = NULL;
-
     if(connect(server_sock_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_in)) == 0)
     {
         fd_set client_fd_set;
@@ -63,7 +62,7 @@ int main(int argc, const char * argv[])
                 }
                 else
                 {
-                    fp = fopen("/root/ctransfer/main.c", "rb");
+                    fp = fopen("/home/zhengdongtian/CLionProjects/ctransfer/main.c", "rb");
                 }
             }
             if(FD_ISSET(server_sock_fd, &client_fd_set))
@@ -72,27 +71,26 @@ int main(int argc, const char * argv[])
                 long byte_num = recv(server_sock_fd, recv_msg, BUFFER_SIZE, 0);
                 if(byte_num > 0)
                 {
-                    if(strcmp(recv_msg, TRANSFER_MSG) == 0)
+                    if(strncmp(recv_msg, TRANSFER_MSG, strlen(TRANSFER_MSG)) == 0)
                     {
                         if(fp != NULL)
                         {
-                            char buffer[BUFFER_SIZE] = {0};
-                            if(!feof(fp))
+                            while(!feof(fp))
                             {
-                                int len = fread(buffer, 1, BUFFER_SIZE, fp);
-                                if(send(server_sock_fd, buffer, len, 0) == -1)
+                                bzero(buffer, BUFFER_SIZE);
+                                fread(buffer, 1, BUFFER_SIZE, fp);
+                                if(send(server_sock_fd, buffer, BUFFER_SIZE, 0) == -1)
                                 {
                                     printf("send failed\n");
+                                    break;
                                 }
                             }
-                            else
+                            fclose(fp);
+                            fp = NULL;
+
+                            if(send(server_sock_fd, TRANSFER_MSG, BUFFER_SIZE, 0) == -1)
                             {
-                                fclose(fp);
-                                fp = NULL;
-                                if(send(server_sock_fd, TRANSFER_MSG, strlen(TRANSFER_MSG), 0) == -1)
-                                {
-                                    perror("发送transfer end消息出错!\n");
-                                }
+                                perror("发送transfer end消息出错!\n");
                             }
                         }
                     }
@@ -109,10 +107,6 @@ int main(int argc, const char * argv[])
             }
         }
         //}
-    }
-    else
-    {
-        fprintf(stderr, "close error with msg is: %s\n",strerror(errno));
     }
     return 0;
 }

@@ -8,7 +8,7 @@
 #include <unistd.h>
 #define BACKLOG 5     //完成三次握手但没有accept的队列的长度
 #define CONCURRENT_MAX 8   //应用层同时可以处理的连接
-#define SERVER_PORT 80
+#define SERVER_PORT 11332
 #define BUFFER_SIZE 1024
 #define QUIT_CMD ".quit\n"
 #define TRANSFER_MSG   "transfer_end"
@@ -79,7 +79,7 @@ int main(int argc, const char * argv[])
     epoll_ctl(epollfd, EPOLL_CTL_ADD, server_sock_fd, &server_event);
 
     //get events from kernel
-    int timeout = 1000;
+    int timeout = 20 * 1000;
     struct epoll_event events[events_len];
 
     //do epoll
@@ -163,6 +163,7 @@ int main(int argc, const char * argv[])
                     //处理某个客户端过来的消息
                     bzero(recv_msg, BUFFER_SIZE);
                     long byte_num = recv(events[i].data.fd, recv_msg, BUFFER_SIZE, 0);
+                    printf("byte_num1 = %d\n", byte_num);
                     if(byte_num > 0)
                     {
                         for(int client_i = 0;client_i < CONCURRENT_MAX;client_i++)
@@ -184,7 +185,7 @@ int main(int argc, const char * argv[])
                                 }
                                 else
                                 {
-                                    if(strcmp(recv_msg, TRANSFER_MSG) == 0)
+                                    if(strncmp(recv_msg, TRANSFER_MSG, strlen(TRANSFER_MSG)) == 0)
                                     {
                                         fclose(clientfps[client_i]);
                                         clientfps[client_i] = NULL;
@@ -192,8 +193,7 @@ int main(int argc, const char * argv[])
                                     }
                                     else
                                     {
-                                        fwrite(recv_msg, 1, byte_num, clientfps[client_i]);
-                                        send(clientfds[client_i], TRANSFER_MSG, strlen(TRANSFER_MSG), 0);
+                                        fwrite(recv_msg, 1, strlen(recv_msg), clientfps[client_i]);
                                     }
                                 }
                                 break;
