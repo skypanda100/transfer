@@ -1,210 +1,182 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/epoll.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #include <string.h>
-#include <unistd.h>
-#define BACKLOG 5     //完成三次握手但没有accept的队列的长度
-#define CONCURRENT_MAX 8   //应用层同时可以处理的连接
-#define SERVER_PORT 11332
+#include "config.h"
+#include "server.h"
+
 #define BUFFER_SIZE 1024
-#define QUIT_CMD ".quit\n"
 #define TRANSFER_MSG   "transfer_end"
 
-int main(int argc, const char * argv[])
+conf cf;
+static int server_sock_fd = -1;
+static int event_poll_fd = -1;
+static int event_poll_size = CLIENT_MAX + 1;
+static int client_fd[CLIENT_MAX];
+static FILE *client_fp[CLIENT_MAX];
+
+void init_server_socket()
 {
-    char input_msg[BUFFER_SIZE];
-    char recv_msg[BUFFER_SIZE];
-    //本地地址
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(SERVER_PORT);
-    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    bzero(&(server_addr.sin_zero), 8);
-    //创建socket
-    int server_sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+    server_sock_fd = create_socket();
     if(server_sock_fd == -1)
     {
-        perror("socket error");
-        return 1;
-    }
-    //绑定socket
-    int bind_result = bind(server_sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-    if(bind_result == -1)
-    {
-        perror("bind error");
-        return 1;
-    }
-    //listen
-    if(listen(server_sock_fd, BACKLOG) == -1)
-    {
-        perror("listen error");
-        return 1;
-    }
-
-    //create epollfd
-    int events_len = CONCURRENT_MAX + 2;
-    int epollfd = epoll_create(events_len);
-    if(epollfd == -1)
-    {
-        fprintf(stderr, "create epollfd failed!\n");
         exit(-1);
     }
+}
 
-    //clientfd
-    int clientfds[CONCURRENT_MAX];
-    for(int i = 0;i < CONCURRENT_MAX;i++)
+void init_event_poll_fd()
+{
+    event_poll_fd = epoll_create(event_poll_size);
+    if(event_poll_fd == -1)
     {
-        clientfds[i] = -1;
+        LOG("%s", "create event poll fd failed!");
+        exit(-1);
+    }
+}
+
+void init_client()
+{
+    for(int i = 0;i < CLIENT_MAX;i++)
+    {
+        client_fd[i] = -1;
     }
 
-    // client fp
-    FILE *clientfps[CONCURRENT_MAX];
-    for(int i = 0;i < CONCURRENT_MAX;i++)
+    for(int i = 0;i < CLIENT_MAX;i++)
     {
-        clientfps[i] = NULL;
+        client_fp[i] = NULL;
     }
+}
 
-    //add event to kernel
-    struct epoll_event stdin_event;
-    stdin_event.events = EPOLLIN;
-    stdin_event.data.fd = STDIN_FILENO;
-    epoll_ctl(epollfd, EPOLL_CTL_ADD, STDIN_FILENO, &stdin_event);
+void register_event_poll(int fd, int is_client_fd)
+{
+    struct epoll_event event;
+    event.events = EPOLLIN;
+    event.data.fd = fd;
+    epoll_ctl(event_poll_fd, EPOLL_CTL_ADD, fd, &event);
 
-    struct epoll_event server_event;
-    server_event.events = EPOLLIN;
-    server_event.data.fd = server_sock_fd;
-    epoll_ctl(epollfd, EPOLL_CTL_ADD, server_sock_fd, &server_event);
+    if(is_client_fd)
+    {
+        int index = -1;
+        for(int client_i = 0;client_i < CLIENT_MAX;client_i++)
+        {
+            if(client_fd[client_i] == -1)
+            {
+                index = client_i;
+                client_fd[client_i] = fd;
+                if(client_fp[client_i] != NULL)
+                {
+                    fclose(client_fp[client_i]);
+                    client_fp[client_i] = NULL;
+                }
+                break;
+            }
+        }
+        if(index == -1)
+        {
+            // do something when clients is full
+        }
+    }
+}
 
-    //get events from kernel
+void cancel_event_poll(int fd)
+{
+    struct epoll_event event;
+    event.events = EPOLLIN;
+    event.data.fd = fd;
+    epoll_ctl(event_poll_fd, EPOLL_CTL_DEL, fd, &event);
+
+    for(int client_i = 0;client_i < CLIENT_MAX;client_i++)
+    {
+        if(client_fd[client_i] == fd)
+        {
+            client_fd[client_i] = -1;
+            if(client_fp[client_i] != NULL)
+            {
+                fclose(client_fp[client_i]);
+                client_fp[client_i] = NULL;
+            }
+            LOG("one client quit, fd is %d", fd);
+            break;
+        }
+    }
+}
+
+void do_event_poll()
+{
+    char client_msg[BUFFER_SIZE];
+    struct epoll_event event_poll_event[event_poll_size];
     int timeout = 20 * 1000;
-    struct epoll_event events[events_len];
-
-    //do epoll
     while(1)
     {
-        int ret = epoll_wait(epollfd, events, events_len, timeout);
+        int ret = epoll_wait(event_poll_fd, event_poll_event, event_poll_size, timeout);
         if(ret < 0)
         {
-            perror("epoll 出错\n");
+            LOG("%s", "event poll wait failed!");
             continue;
         }
         else if(ret == 0)
         {
-            printf("epoll 超时\n");
+            LOG("%s", "event poll wait timeout!");
             continue;
         }
         else
         {
             for(int i = 0;i < ret;i++)
             {
-                int fd = events->data.fd;
-                if(fd == server_sock_fd && (events->events & server_event.events))
+                if(event_poll_event[i].data.fd == server_sock_fd && (event_poll_event[i].events & EPOLLIN))
                 {
-                    //有新的连接请求
-                    struct sockaddr_in client_address;
-                    socklen_t address_len;
-                    int client_sock_fd = accept(server_sock_fd, (struct sockaddr *)&client_address, &address_len);
-                    printf("new connection client_sock_fd = %d\n", client_sock_fd);
+                    // 有新的连接请求
+                    int client_sock_fd = get_client_socket(server_sock_fd);
                     if(client_sock_fd > 0)
                     {
-                        int index = -1;
-                        for(int client_i = 0;client_i < CONCURRENT_MAX;client_i++)
-                        {
-                            if(clientfds[client_i] == -1)
-                            {
-                                index = client_i;
-                                clientfds[client_i] = client_sock_fd;
-
-                                // add event to kernel
-                                struct epoll_event client_event;
-                                client_event.events = EPOLLIN;
-                                client_event.data.fd = client_sock_fd;
-                                epoll_ctl(epollfd, EPOLL_CTL_ADD, client_sock_fd, &client_event);
-
-                                break;
-                            }
-                        }
-                        if(index >= 0)
-                        {
-                            printf("新客户端(%d)加入成功 %s:%d\n", index, inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port));
-                        }
-                        else
-                        {
-                            bzero(input_msg, BUFFER_SIZE);
-                            strcpy(input_msg, "服务器加入的客户端数达到最大值,无法加入!\n");
-                            send(client_sock_fd, input_msg, BUFFER_SIZE, 0);
-                            printf("客户端连接数达到最大值，新客户端加入失败 %s:%d\n", inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port));
-                        }
-                    }
-                }
-                else if(fd == STDIN_FILENO && (events->events & stdin_event.events))
-                {
-                    bzero(input_msg, BUFFER_SIZE);
-                    fgets(input_msg, BUFFER_SIZE, stdin);
-                    //输入“.quit"则退出服务器
-                    if(strcmp(input_msg, QUIT_CMD) == 0)
-                    {
-                        exit(0);
-                    }
-                    for(int client_i = 0;client_i < CONCURRENT_MAX;client_i++)
-                    {
-                        if(clientfds[client_i] > 0)
-                        {
-                            printf("向客户端(%d)发送消息\n", client_i);
-                            send(clientfds[client_i], input_msg, BUFFER_SIZE, 0);
-                        }
+                        register_event_poll(client_sock_fd, 1);
                     }
                 }
                 else
                 {
-                    //处理某个客户端过来的消息
-                    bzero(recv_msg, BUFFER_SIZE);
-                    long byte_num = recv(events[i].data.fd, recv_msg, BUFFER_SIZE, 0);
-                    printf("byte_num1 = %d\n", byte_num);
-                    if(byte_num > 0)
+                    // 处理某个客户端过来的消息
+                    long client_msg_size = recv_from_client(event_poll_event[i].data.fd, client_msg, BUFFER_SIZE);
+                    if(client_msg_size > 0)
                     {
-                        for(int client_i = 0;client_i < CONCURRENT_MAX;client_i++)
+                        for(int client_i = 0;client_i < CLIENT_MAX;client_i++)
                         {
-                            if(clientfds[client_i] == events[i].data.fd)
+                            if(client_fd[client_i] == event_poll_event[i].data.fd)
                             {
-                                if(clientfps[client_i] == NULL)
+                                if(client_fp[client_i] == NULL)
                                 {
-                                    FILE *fp = fopen(recv_msg, "wb");
+                                    FILE *fp = fopen(client_msg, "wb");
                                     if(fp == NULL)
                                     {
-                                        printf("客户端(%d), create file failed:%s\n", client_i, recv_msg);
+                                        printf("客户端(%d), create file failed:%s\n", client_i, client_msg);
                                     }
                                     else
                                     {
-                                        clientfps[client_i] = fp;
-                                        send(clientfds[client_i], TRANSFER_MSG, strlen(TRANSFER_MSG), 0);
+                                        client_fp[client_i] = fp;
+                                        send(client_fd[client_i], TRANSFER_MSG, strlen(TRANSFER_MSG), 0);
                                     }
                                 }
                                 else
                                 {
-                                    if(strncmp(recv_msg, TRANSFER_MSG, strlen(TRANSFER_MSG)) == 0)
+                                    if(strncmp(client_msg, TRANSFER_MSG, strlen(TRANSFER_MSG)) == 0)
                                     {
-                                        fclose(clientfps[client_i]);
-                                        clientfps[client_i] = NULL;
+                                        fclose(client_fp[client_i]);
+                                        client_fp[client_i] = NULL;
                                         printf("transfer end\n");
                                     }
                                     else
                                     {
-                                        fwrite(recv_msg, 1, strlen(recv_msg), clientfps[client_i]);
+                                        fwrite(client_msg, 1, client_msg_size, client_fp[client_i]);
                                     }
                                 }
                                 break;
                             }
                         }
                     }
-                    else if(byte_num < 0)
+                    else if(client_msg_size < 0)
                     {
-                        for(int client_i = 0;client_i < CONCURRENT_MAX;client_i++)
+                        for(int client_i = 0;client_i < CLIENT_MAX;client_i++)
                         {
-                            if(clientfds[client_i] == events[i].data.fd)
+                            if(client_fd[client_i] == event_poll_event[i].data.fd)
                             {
                                 printf("从客户端(%d)接受消息出错.\n", client_i);
                                 break;
@@ -213,27 +185,22 @@ int main(int argc, const char * argv[])
                     }
                     else
                     {
-                        // delete event in kernel
-                        struct epoll_event client_event;
-                        client_event.events = EPOLLIN;
-                        client_event.data.fd = events[i].data.fd;
-                        epoll_ctl(epollfd, EPOLL_CTL_DEL, events[i].data.fd, &client_event);
-
-                        for(int client_i = 0;client_i < CONCURRENT_MAX;client_i++)
-                        {
-                            if(clientfds[client_i] == events[i].data.fd)
-                            {
-                                clientfds[client_i] = -1;
-                                printf("客户端(%d)退出了.\n", client_i);
-                                break;
-                            }
-                        }
+                        cancel_event_poll(event_poll_event[i].data.fd);
                     }
                 }
             }
         }
     }
-    close(epollfd);
+}
+
+int main(int argc, const char * argv[])
+{
+    init_server_socket();
+    init_event_poll_fd();
+    init_client();
+
+    register_event_poll(server_sock_fd, 0);
+    do_event_poll();
 
     return 0;
 }

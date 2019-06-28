@@ -9,5 +9,5 @@ else ()
     set (CMAKE_C_STANDARD 99)
 endif ()
 
-set(SOURCE_FILES main.c)
+set(SOURCE_FILES main.c log.h log.c config.h config.c def.h util.h util.c server.h server.c)
 add_executable(stransfer ${SOURCE_FILES})

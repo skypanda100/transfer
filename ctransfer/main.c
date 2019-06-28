@@ -78,8 +78,8 @@ int main(int argc, const char * argv[])
                             while(!feof(fp))
                             {
                                 bzero(buffer, BUFFER_SIZE);
-                                fread(buffer, 1, BUFFER_SIZE, fp);
-                                if(send(server_sock_fd, buffer, BUFFER_SIZE, 0) == -1)
+                                int len = fread(buffer, 1, BUFFER_SIZE, fp);
+                                if(send(server_sock_fd, buffer, len, 0) == -1)
                                 {
                                     printf("send failed\n");
                                     break;
