@@ -17,6 +17,6 @@
 
 int create_socket();
 int get_client_socket(int server_sock_fd);
-int receive_from_client(int client_sock_fd, package *pkg_ptr);
+long receive_from_client(int client_sock_fd, char *buffer_ptr, int buffer_size);
 
 #endif //STRANSFER_SERVER_H
