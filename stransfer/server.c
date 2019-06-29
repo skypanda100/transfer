@@ -17,20 +17,20 @@ int create_socket()
     int server_sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if(server_sock_fd == -1)
     {
-        LOG("%s", "create socket failed!");
+        LOG("create socket failed: %s", strerror(errno));
         return -1;
     }
     // 绑定socket
     int bind_result = bind(server_sock_fd, (struct sockaddr *)&server_address, sizeof(server_address));
     if(bind_result == -1)
     {
-        LOG("%s", "socket bind failed!");
+        LOG("socket bind failed: %s", strerror(errno));
         return -1;
     }
     // listen
     if(listen(server_sock_fd, BACKLOG) == -1)
     {
-        LOG("%s", "listen socket failed!");
+        LOG("listen socket failed: %s", strerror(errno));
         return -1;
     }
 
@@ -42,6 +42,9 @@ int get_client_socket(int server_sock_fd)
     struct sockaddr_in client_address;
     socklen_t address_len;
     int client_sock_fd = accept(server_sock_fd, (struct sockaddr *)&client_address, &address_len);
+//    int enable = 1;
+//    setsockopt(client_sock_fd, IPPROTO_TCP, TCP_NODELAY, (void*)&enable, sizeof(enable));
+
     LOG("new client join in, ip is %s, port is %d, fd is %d)", inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port), client_sock_fd);
 
     return client_sock_fd;

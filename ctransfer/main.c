@@ -2,19 +2,14 @@
 #include <stdlib.h>
 #include <poll.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <unistd.h>
-#define CONTENT_SIZE    1024
-#define BUFFER_SIZE     sizeof(int) + CONTENT_SIZE
+#define BUFFER_SIZE     4096
 #define CIPHER          "@mtt@ is my cat"
-
-typedef struct st_package
-{
-    int size;
-    char content[CONTENT_SIZE];
-}package;
 
 int main(int argc, const char * argv[])
 {
@@ -25,6 +20,9 @@ int main(int argc, const char * argv[])
     bzero(&(server_addr.sin_zero), 8);
 
     int server_sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int enable = 1;
+//    setsockopt(server_sock_fd, IPPROTO_TCP, TCP_NODELAY, (void*)&enable, sizeof(enable));
+
     if(server_sock_fd == -1)
     {
         perror("socket error");
@@ -33,7 +31,6 @@ int main(int argc, const char * argv[])
     char recv_msg[BUFFER_SIZE];
     char input_msg[BUFFER_SIZE];
     char buffer[BUFFER_SIZE] = {0};
-    char content[CONTENT_SIZE] = {0};
     FILE *fp = NULL;
     if(connect(server_sock_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_in)) == 0)
     {
@@ -65,17 +62,23 @@ int main(int argc, const char * argv[])
                     }
                 }
                 bzero(buffer, BUFFER_SIZE);
-                bzero(content, CONTENT_SIZE);
+
+                fp = fopen("/home/zhengdongtian/app/transfer/ctransfer/main.c", "rb");
+                fseek(fp, 0L, SEEK_END);
+                long file_size = ftell(fp);
+                fseek(fp, 0L, SEEK_SET);
+
                 int len = strlen(input_msg);
-                memcpy(buffer, &len, sizeof(int));
-                memcpy(buffer + sizeof(int), input_msg, len);
-                if(send(server_sock_fd, buffer, BUFFER_SIZE, 0) == -1)
+                memcpy(buffer, &file_size, sizeof(long));
+                memcpy(buffer + sizeof(long), input_msg, len);
+                if(send(server_sock_fd, buffer, sizeof(long) + len, 0) == -1)
                 {
                     perror("发送path消息出错!\n");
-                }
-                else
-                {
-                    fp = fopen("/home/zhengdongtian/CLionProjects/ctransfer/main.c", "rb");
+                    if(fp != NULL)
+                    {
+                        fclose(fp);
+                        fp = NULL;
+                    }
                 }
             }
             if(FD_ISSET(server_sock_fd, &client_fd_set))
@@ -84,6 +87,7 @@ int main(int argc, const char * argv[])
                 long byte_num = recv(server_sock_fd, recv_msg, BUFFER_SIZE, 0);
                 if(byte_num > 0)
                 {
+                    printf("%s", recv_msg);
                     if(strncmp(recv_msg, CIPHER, strlen(CIPHER)) == 0)
                     {
                         if(fp != NULL)
@@ -91,10 +95,7 @@ int main(int argc, const char * argv[])
                             while(!feof(fp))
                             {
                                 bzero(buffer, BUFFER_SIZE);
-                                bzero(content, CONTENT_SIZE);
-                                int len = fread(content, 1, CONTENT_SIZE, fp);
-                                memcpy(buffer, &len, sizeof(int));
-                                memcpy(buffer + sizeof(int), content, CONTENT_SIZE);
+                                int len = fread(buffer, 1, BUFFER_SIZE, fp);
                                 if(send(server_sock_fd, buffer, len, 0) == -1)
                                 {
                                     printf("send failed\n");
@@ -103,16 +104,10 @@ int main(int argc, const char * argv[])
                             }
                             fclose(fp);
                             fp = NULL;
-
-                            bzero(buffer, BUFFER_SIZE);
-                            bzero(content, CONTENT_SIZE);
-                            int len = strlen(CIPHER);
-                            memcpy(buffer, &len, sizeof(int));
-                            memcpy(buffer + sizeof(int), CIPHER, len);
-                            if(send(server_sock_fd, buffer, BUFFER_SIZE, 0) == -1)
-                            {
-                                perror("发送transfer end消息出错!\n");
-                            }
+                        }
+                        else
+                        {
+                            printf("receive from server: receive file successfully!");
                         }
                     }
                 }

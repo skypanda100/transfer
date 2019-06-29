@@ -219,6 +219,7 @@ void do_event_poll()
                                         memcpy(&(client_file_info_a[client_i].remain_size), buffer, sizeof(long));
                                         client_file_info_a[client_i].fp = fp;
                                         send(client_sock_fd_a[client_i], CIPHER, strlen(CIPHER), 0);
+                                        LOG("client fd is %d, create file successfully: %s, %ld", client_sock_fd_a[client_i], path_ptr, client_file_info_a[client_i].remain_size);
                                     }
                                 }
                                 else
@@ -230,6 +231,7 @@ void do_event_poll()
                             {
                                 fwrite(buffer, 1, receive_size, client_file_info_a[client_i].fp);
                                 client_file_info_a[client_i].remain_size -= receive_size;
+                                printf("%d\n", client_file_info_a[client_i].remain_size);
                                 if(client_file_info_a[client_i].remain_size == 0)
                                 {
                                     // end
