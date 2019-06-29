@@ -231,7 +231,6 @@ void do_event_poll()
                             {
                                 fwrite(buffer, 1, receive_size, client_file_info_a[client_i].fp);
                                 client_file_info_a[client_i].remain_size -= receive_size;
-                                printf("%d\n", client_file_info_a[client_i].remain_size);
                                 if(client_file_info_a[client_i].remain_size == 0)
                                 {
                                     // end
@@ -243,6 +242,7 @@ void do_event_poll()
                                 {
                                     // error
                                     LOG("client fd is %d, write file failed!", client_sock_fd_a[client_i]);
+                                    clear_client_file_info(client_i);
                                 }
                             }
                         }
@@ -253,6 +253,7 @@ void do_event_poll()
                         if(client_i >= 0)
                         {
                             LOG("client fd is %d, receive message failed!", client_sock_fd_a[client_i]);
+                            clear_client_file_info(client_i);
                         }
                     }
                     else    // close

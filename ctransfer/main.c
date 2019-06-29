@@ -32,6 +32,7 @@ int main(int argc, const char * argv[])
     char input_msg[BUFFER_SIZE];
     char buffer[BUFFER_SIZE] = {0};
     FILE *fp = NULL;
+    long file_size = 0;
     if(connect(server_sock_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_in)) == 0)
     {
         fd_set client_fd_set;
@@ -65,7 +66,7 @@ int main(int argc, const char * argv[])
 
                 fp = fopen("/home/zhengdongtian/app/transfer/ctransfer/main.c", "rb");
                 fseek(fp, 0L, SEEK_END);
-                long file_size = ftell(fp);
+                file_size = ftell(fp);
                 fseek(fp, 0L, SEEK_SET);
 
                 int len = strlen(input_msg);
@@ -85,9 +86,9 @@ int main(int argc, const char * argv[])
             {
                 bzero(recv_msg, BUFFER_SIZE);
                 long byte_num = recv(server_sock_fd, recv_msg, BUFFER_SIZE, 0);
+                printf("byte_num = %ld\n", byte_num);
                 if(byte_num > 0)
                 {
-                    printf("%s", recv_msg);
                     if(strncmp(recv_msg, CIPHER, strlen(CIPHER)) == 0)
                     {
                         if(fp != NULL)
@@ -95,10 +96,24 @@ int main(int argc, const char * argv[])
                             while(!feof(fp))
                             {
                                 bzero(buffer, BUFFER_SIZE);
+                                int send_len = 0;
                                 int len = fread(buffer, 1, BUFFER_SIZE, fp);
-                                if(send(server_sock_fd, buffer, len, 0) == -1)
+                                if(len > file_size)
+                                {
+                                    send_len = file_size;
+                                }
+                                else
+                                {
+                                    send_len = len;
+                                }
+                                if(send(server_sock_fd, buffer, send_len, 0) == -1)
                                 {
                                     printf("send failed\n");
+                                    break;
+                                }
+                                file_size -= send_len;
+                                if(file_size == 0)
+                                {
                                     break;
                                 }
                             }
@@ -107,7 +122,7 @@ int main(int argc, const char * argv[])
                         }
                         else
                         {
-                            printf("receive from server: receive file successfully!");
+                            printf("receive from server: receive file successfully!\n");
                         }
                     }
                 }
