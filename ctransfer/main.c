@@ -15,10 +15,18 @@ static pthread_t thread = 0;
 static int client_sock_fd = -1;
 
 void init_client_socket();
+void reconnect();
 void transfer();
 
 int main(int argc, const char * argv[])
 {
+    if(argc != 2)
+    {
+        fprintf(stderr, "please input conf path!\n");
+        exit(-1);
+    }
+
+    config(argv[1]);
     init_client_socket();
     // create a thread that loop files and transfer it
     pthread_create(&thread, NULL, (void *)&transfer, NULL);
@@ -34,6 +42,19 @@ void init_client_socket()
     if(client_sock_fd == -1)
     {
         exit(-1);
+    }
+}
+
+void reconnect()
+{
+    while(1)
+    {
+        client_sock_fd = create_socket();
+        if(client_sock_fd != -1)
+        {
+            break;
+        }
+        sleep(5);
     }
 }
 
@@ -104,9 +125,15 @@ void transfer()
                     transfer_size = ftell(transfer_fp);
                     fseek(transfer_fp, 0L, SEEK_SET);
 
+                    char dst_file[1024] = {0};
+                    strcpy(dst_file, cf.dst_dir);
+                    strcat(dst_file, "/");
+                    strcat(dst_file, file_ptr + strlen(cf.src_dir));
+
                     memcpy(buffer, &transfer_size, sizeof(long));
-                    memcpy(buffer + sizeof(long), file_ptr, strlen(file_ptr));
-                    if (send(client_sock_fd, buffer, sizeof(long) + strlen(file_ptr), 0) == -1) {
+                    memcpy(buffer + sizeof(long), dst_file, strlen(dst_file));
+                    if(send(client_sock_fd, buffer, sizeof(long) + strlen(dst_file), 0) == -1)
+                    {
                         LOG("send path failed: %s", file_ptr);
                         if (transfer_fp != NULL) {
                             fclose(transfer_fp);
@@ -167,7 +194,7 @@ void transfer()
                 else
                 {
                     LOG("receive from server: server quit!");
-//                    exit(0);
+                    reconnect();
                 }
             }
         }
