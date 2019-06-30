@@ -1,5 +1,5 @@
 //
-// Created by root on 19-6-27.
+// Created by zhengdongtian on 19-6-27.
 //
 
 #ifndef STRANSFER_LOG_H

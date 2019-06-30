@@ -41,7 +41,6 @@ int main(int argc, const char * argv[])
     return 0;
 }
 
-
 void init_server_socket()
 {
     server_sock_fd = create_socket();

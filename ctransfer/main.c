@@ -1,143 +1,175 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <poll.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <arpa/inet.h>
 #include <string.h>
-#include <unistd.h>
-#define BUFFER_SIZE     4096
-#define CIPHER          "@mtt@ is my cat"
+#include <pthread.h>
+#include "def.h"
+#include "log.h"
+#include "client.h"
+#include "notify.h"
+
+conf cf;
+char **transfer_file_ptr_ptr = NULL;
+int transfer_file_len = 0;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_t thread = 0;
+static int client_sock_fd = -1;
+
+void init_client_socket();
+void transfer();
 
 int main(int argc, const char * argv[])
 {
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(11332);
-    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    bzero(&(server_addr.sin_zero), 8);
+    init_client_socket();
+    // create a thread that loop files and transfer it
+    pthread_create(&thread, NULL, (void *)&transfer, NULL);
+    // watch src dir
+    watch();
 
-    int server_sock_fd = socket(AF_INET, SOCK_STREAM, 0);
-    int enable = 1;
-//    setsockopt(server_sock_fd, IPPROTO_TCP, TCP_NODELAY, (void*)&enable, sizeof(enable));
+    return 0;
+}
 
-    if(server_sock_fd == -1)
+void init_client_socket()
+{
+    client_sock_fd = create_socket();
+    if(client_sock_fd == -1)
     {
-        perror("socket error");
-        return 1;
+        exit(-1);
     }
-    char recv_msg[BUFFER_SIZE];
-    char input_msg[BUFFER_SIZE];
+}
+
+void transfer()
+{
+    // select
+    fd_set client_fd_set;
+    struct timeval tv;
+    // socket message
     char buffer[BUFFER_SIZE] = {0};
-    FILE *fp = NULL;
-    long file_size = 0;
-    if(connect(server_sock_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_in)) == 0)
+    char server_msg[BUFFER_SIZE] = {0};
+    // transfer file
+    FILE *transfer_fp = NULL;
+    long transfer_size = 0;
+    int transfer_index = 0;
+    // temp files
+    char **file_ptr_ptr = NULL;
+    int file_len = 0;
+
+    for(;;)
     {
-        fd_set client_fd_set;
-        struct timeval tv;
+        tv.tv_sec = 10;
+        tv.tv_usec = 0;
+        FD_ZERO(&client_fd_set);
+        FD_SET(client_sock_fd, &client_fd_set);
 
-        while(1)
+        if(transfer_index >= file_len)
         {
-            tv.tv_sec = 20;
-            tv.tv_usec = 0;
-            FD_ZERO(&client_fd_set);
-            FD_SET(STDIN_FILENO, &client_fd_set);
-            FD_SET(server_sock_fd, &client_fd_set);
+            // free
+            for(int i = 0;i < file_len;i++) {
+                free(file_ptr_ptr[i]);
+                file_ptr_ptr[i] = NULL;
+            }
+            free(file_ptr_ptr);
+            file_ptr_ptr = NULL;
+            file_len = 0;
 
-            select(server_sock_fd + 1, &client_fd_set, NULL, NULL, &tv);
-            if(FD_ISSET(STDIN_FILENO, &client_fd_set))
+            if(transfer_file_ptr_ptr != NULL)
             {
-                bzero(input_msg, BUFFER_SIZE);
-                fgets(input_msg, BUFFER_SIZE, stdin);
-                for(int i = strlen(input_msg) - 1;i >= 0;i--)
+                if(pthread_mutex_lock(&mutex) != 0)
                 {
-                    if(input_msg[i] == '\n' || input_msg[i] == '\r')
-                    {
-                        input_msg[i] = 0;
-                    }
-                    else
-                    {
-                        break;
-                    }
+                    LOG("pthread_mutex_lock failed!");
                 }
-                bzero(buffer, BUFFER_SIZE);
+                transfer_index = 0;
+                file_len = transfer_file_len;
+                file_ptr_ptr = (char **)malloc(sizeof(char *) * file_len);
+                memcpy(file_ptr_ptr, transfer_file_ptr_ptr, sizeof(char *) * transfer_file_len);
 
-                fp = fopen("/home/zhengdongtian/app/transfer/ctransfer/main.c", "rb");
-                fseek(fp, 0L, SEEK_END);
-                file_size = ftell(fp);
-                fseek(fp, 0L, SEEK_SET);
-
-                int len = strlen(input_msg);
-                memcpy(buffer, &file_size, sizeof(long));
-                memcpy(buffer + sizeof(long), input_msg, len);
-                if(send(server_sock_fd, buffer, sizeof(long) + len, 0) == -1)
+                // free
+                free(transfer_file_ptr_ptr);
+                transfer_file_ptr_ptr = NULL;
+                transfer_file_len = 0;
+                if(pthread_mutex_unlock(&mutex) != 0)
                 {
-                    perror("发送path消息出错!\n");
-                    if(fp != NULL)
-                    {
-                        fclose(fp);
-                        fp = NULL;
+                    LOG("pthread_mutex_unlock failed!");
+                }
+            }
+        }
+
+        if(file_len > 0)
+        {
+            if(transfer_fp == NULL)
+            {
+                char *file_ptr = file_ptr_ptr[transfer_index];
+                if(strlen(file_ptr) > 0) {
+                    transfer_fp = fopen(file_ptr, "rb");
+                    fseek(transfer_fp, 0L, SEEK_END);
+                    transfer_size = ftell(transfer_fp);
+                    fseek(transfer_fp, 0L, SEEK_SET);
+
+                    memcpy(buffer, &transfer_size, sizeof(long));
+                    memcpy(buffer + sizeof(long), file_ptr, strlen(file_ptr));
+                    if (send(client_sock_fd, buffer, sizeof(long) + strlen(file_ptr), 0) == -1) {
+                        LOG("send path failed: %s", file_ptr);
+                        if (transfer_fp != NULL) {
+                            fclose(transfer_fp);
+                            transfer_fp = NULL;
+                        }
                     }
                 }
             }
-            if(FD_ISSET(server_sock_fd, &client_fd_set))
+            select(client_sock_fd + 1, &client_fd_set, NULL, NULL, &tv);
+            if(FD_ISSET(client_sock_fd, &client_fd_set))
             {
-                bzero(recv_msg, BUFFER_SIZE);
-                long byte_num = recv(server_sock_fd, recv_msg, BUFFER_SIZE, 0);
-                printf("byte_num = %ld\n", byte_num);
-                if(byte_num > 0)
+                bzero(server_msg, BUFFER_SIZE);
+                long server_msg_size = receive_from_server(client_sock_fd, server_msg, BUFFER_SIZE);
+                if(server_msg_size > 0)
                 {
-                    if(strncmp(recv_msg, CIPHER, strlen(CIPHER)) == 0)
+                    if(strncmp(server_msg, CIPHER, strlen(CIPHER)) == 0)
                     {
-                        if(fp != NULL)
+                        if(transfer_fp != NULL && transfer_size > 0)
                         {
-                            while(!feof(fp))
+                            while(!feof(transfer_fp))
                             {
                                 bzero(buffer, BUFFER_SIZE);
                                 int send_len = 0;
-                                int len = fread(buffer, 1, BUFFER_SIZE, fp);
-                                if(len > file_size)
+                                int len = fread(buffer, 1, BUFFER_SIZE, transfer_fp);
+                                if(len > transfer_size)
                                 {
-                                    send_len = file_size;
+                                    send_len = transfer_size;
                                 }
                                 else
                                 {
                                     send_len = len;
                                 }
-                                if(send(server_sock_fd, buffer, send_len, 0) == -1)
+                                if(send(client_sock_fd, buffer, send_len, 0) == -1)
                                 {
-                                    printf("send failed\n");
+                                    LOG("send file failed!");
                                     break;
                                 }
-                                file_size -= send_len;
-                                if(file_size == 0)
+                                transfer_size -= send_len;
+                                if(transfer_size == 0)
                                 {
                                     break;
                                 }
                             }
-                            fclose(fp);
-                            fp = NULL;
                         }
                         else
                         {
-                            printf("receive from server: receive file successfully!\n");
+                            transfer_index++;
+                            fclose(transfer_fp);
+                            transfer_fp = NULL;
+                            LOG("receive from server: receive file successfully!");
                         }
                     }
                 }
-                else if(byte_num < 0)
+                else if(server_msg_size < 0)
                 {
-                    printf("接受消息出错!\n");
+                    LOG("receive from server failed!");
                 }
                 else
                 {
-                    printf("服务器端退出!\n");
-                    exit(0);
+                    LOG("receive from server: server quit!");
+//                    exit(0);
                 }
             }
         }
-        //}
     }
-    return 0;
 }

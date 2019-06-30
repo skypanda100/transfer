@@ -1,13 +1,10 @@
 //
-// Created by root on 19-6-27.
+// Created by zhengdongtian on 19-6-27.
 //
 
 #ifndef STRANSFER_DEF_H
 #define STRANSFER_DEF_H
-#include <sys/time.h>
-#include <limits.h>
-#include <sys/inotify.h>
-#include "log.h"
+#include <stdio.h>
 
 #define BUFFER_SIZE     4096
 #define BACKLOG         64

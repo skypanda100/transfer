@@ -10,5 +10,6 @@ else ()
 endif ()
 
 
-set(SOURCE_FILES main.c)
+set(SOURCE_FILES main.c config.h config.c def.h log.h log.c util.h util.c client.h client.c notify.h notify.c)
 add_executable(ctransfer ${SOURCE_FILES})
+target_link_libraries(ctransfer pthread)
