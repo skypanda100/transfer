@@ -13,6 +13,7 @@
 
 typedef struct st_file_info
 {
+    int is_login;
     long remain_size;
     FILE *fp;
 }file_info;

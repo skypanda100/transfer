@@ -116,6 +116,12 @@ void config(const char *conf_path_ptr)
         exit(-1);
     }
 
+    if(atoi(val_port) < 1 || atoi(val_port) > 65535)
+    {
+        fprintf(stderr, "port must be 1 ~ 65535!\n");
+        exit(-1);
+    }
+
     if(strlen(val_key) == 0)
     {
         fprintf(stderr, "key can not be empty!\n");

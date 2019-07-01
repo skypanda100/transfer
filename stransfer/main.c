@@ -55,7 +55,8 @@ void init_event_poll_fd()
     event_poll_fd = epoll_create(event_poll_size);
     if(event_poll_fd == -1)
     {
-        LOG("%s", "create event poll fd failed!");
+        LOG("create event poll fd failed: %s", strerror(errno));
+        fprintf(stderr, "create event poll fd failed: %s\n", strerror(errno));
         exit(-1);
     }
 }
@@ -69,6 +70,7 @@ void init_client()
 
     for(int i = 0;i < CLIENT_MAX;i++)
     {
+        client_file_info_a[i].is_login = 0;
         client_file_info_a[i].remain_size = 0;
         client_file_info_a[i].fp = NULL;
     }
@@ -113,6 +115,7 @@ void cancel_event_poll(int fd)
         if(client_sock_fd_a[client_i] == fd)
         {
             client_sock_fd_a[client_i] = -1;
+            client_file_info_a[client_i].is_login = 0;
             clear_client_file_info(client_i);
             LOG("client fd is %d, quit!", fd);
             break;
@@ -178,7 +181,7 @@ void do_event_poll()
         }
         else if(ret == 0)
         {
-            LOG("%s", "event poll wait timeout!");
+//            LOG("%s", "event poll wait timeout!");
             continue;
         }
         else
@@ -203,45 +206,66 @@ void do_event_poll()
                         int client_i = index_of_client_sock_fd_a(event_poll_event[i].data.fd);
                         if(client_i >= 0)
                         {
-                            if(client_file_info_a[client_i].fp == NULL)
+                            // check key
+                            if(client_file_info_a[client_i].is_login == 0)
                             {
-                                char *path_ptr = buffer + sizeof(long);
-                                if(create_dir(path_ptr) == 0)
+                                char key[BUFFER_SIZE] = {0};
+                                strncpy(key, buffer, receive_size);
+                                if(strcmp(key, cf.key) == 0)
                                 {
-                                    FILE *fp = fopen(path_ptr, "wb");
-                                    if(fp == NULL)
-                                    {
-                                        LOG("client fd is %d, create file failed: %s", client_sock_fd_a[client_i], path_ptr);
-                                    }
-                                    else
-                                    {
-                                        memcpy(&(client_file_info_a[client_i].remain_size), buffer, sizeof(long));
-                                        client_file_info_a[client_i].fp = fp;
-                                        send(client_sock_fd_a[client_i], CIPHER, strlen(CIPHER), 0);
-                                        LOG("client fd is %d, create file successfully: %s, %ld", client_sock_fd_a[client_i], path_ptr, client_file_info_a[client_i].remain_size);
-                                    }
+                                    client_file_info_a[client_i].is_login = 1;
+                                    send(client_sock_fd_a[client_i], CIPHER, strlen(CIPHER), 0);
+                                    LOG("client fd is %d, join us successfully!", client_sock_fd_a[client_i]);
                                 }
                                 else
                                 {
-                                    LOG("client fd is %d, create dir failed: %s", client_sock_fd_a[client_i], path_ptr);
+                                    LOG("client fd is %d, join us failed: %s", client_sock_fd_a[client_i], key);
+                                    send(client_sock_fd_a[client_i], "bye", strlen("bye"), 0);
+                                    cancel_event_poll(event_poll_event[i].data.fd);
                                 }
                             }
                             else
                             {
-                                fwrite(buffer, 1, receive_size, client_file_info_a[client_i].fp);
-                                client_file_info_a[client_i].remain_size -= receive_size;
-                                if(client_file_info_a[client_i].remain_size == 0)
+                                if(client_file_info_a[client_i].fp == NULL)
                                 {
-                                    // end
-                                    LOG("client fd is %d, write file successfully!", client_sock_fd_a[client_i]);
-                                    clear_client_file_info(client_i);
-                                    send(client_sock_fd_a[client_i], CIPHER, strlen(CIPHER), 0);
+                                    char *path_ptr = buffer + sizeof(long);
+                                    if(create_dir(path_ptr) == 0)
+                                    {
+                                        FILE *fp = fopen(path_ptr, "wb");
+                                        if(fp == NULL)
+                                        {
+                                            LOG("client fd is %d, create file failed: %s", client_sock_fd_a[client_i], path_ptr);
+                                        }
+                                        else
+                                        {
+                                            memcpy(&(client_file_info_a[client_i].remain_size), buffer, sizeof(long));
+                                            client_file_info_a[client_i].fp = fp;
+                                            send(client_sock_fd_a[client_i], CIPHER, strlen(CIPHER), 0);
+                                            LOG("client fd is %d, create file successfully: %s, %ld", client_sock_fd_a[client_i], path_ptr, client_file_info_a[client_i].remain_size);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        LOG("client fd is %d, create dir failed: %s", client_sock_fd_a[client_i], path_ptr);
+                                    }
                                 }
-                                else if(client_file_info_a[client_i].remain_size < 0)
+                                else
                                 {
-                                    // error
-                                    LOG("client fd is %d, write file failed!", client_sock_fd_a[client_i]);
-                                    clear_client_file_info(client_i);
+                                    fwrite(buffer, 1, receive_size, client_file_info_a[client_i].fp);
+                                    client_file_info_a[client_i].remain_size -= receive_size;
+                                    if(client_file_info_a[client_i].remain_size == 0)
+                                    {
+                                        // end
+                                        LOG("client fd is %d, write file successfully!", client_sock_fd_a[client_i]);
+                                        clear_client_file_info(client_i);
+                                        send(client_sock_fd_a[client_i], CIPHER, strlen(CIPHER), 0);
+                                    }
+                                    else if(client_file_info_a[client_i].remain_size < 0)
+                                    {
+                                        // error
+                                        LOG("client fd is %d, write file failed!", client_sock_fd_a[client_i]);
+                                        clear_client_file_info(client_i);
+                                    }
                                 }
                             }
                         }

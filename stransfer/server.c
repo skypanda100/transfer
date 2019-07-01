@@ -17,20 +17,26 @@ int create_socket()
     int server_sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if(server_sock_fd == -1)
     {
-        LOG("create socket failed: %s", strerror(errno));
+        char *err_ptr = strerror(errno);
+        LOG("create socket failed: %s", err_ptr);
+        fprintf(stderr, "create socket failed: %s\n", err_ptr);
         return -1;
     }
     // 绑定socket
     int bind_result = bind(server_sock_fd, (struct sockaddr *)&server_address, sizeof(server_address));
     if(bind_result == -1)
     {
-        LOG("socket bind failed: %s", strerror(errno));
+        char *err_ptr = strerror(errno);
+        LOG("socket bind failed: %s", err_ptr);
+        fprintf(stderr, "socket bind failed: %s\n", err_ptr);
         return -1;
     }
     // listen
     if(listen(server_sock_fd, BACKLOG) == -1)
     {
-        LOG("listen socket failed: %s", strerror(errno));
+        char *err_ptr = strerror(errno);
+        LOG("listen socket failed: %s", err_ptr);
+        fprintf(stderr, "listen socket failed: %s\n", err_ptr);
         return -1;
     }
 
@@ -45,7 +51,7 @@ int get_client_socket(int server_sock_fd)
 //    int enable = 1;
 //    setsockopt(client_sock_fd, IPPROTO_TCP, TCP_NODELAY, (void*)&enable, sizeof(enable));
 
-    LOG("new client join in, ip is %s, port is %d, fd is %d)", inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port), client_sock_fd);
+    LOG("new client want to join us, ip is %s, port is %d, fd is %d", inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port), client_sock_fd);
 
     return client_sock_fd;
 }

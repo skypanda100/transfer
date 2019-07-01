@@ -19,15 +19,52 @@ int create_socket()
 
     if(client_sock_fd == -1)
     {
-        LOG("create socket failed: %s", strerror(errno));
+        char *err_ptr = strerror(errno);
+        LOG("create socket failed: %s", err_ptr);
+        fprintf(stderr, "create socket failed: %s\n", err_ptr);
         return -1;
     }
 
     int ret = connect(client_sock_fd, (struct sockaddr *)&client_address, sizeof(struct sockaddr_in));
     if(ret == -1)
     {
-        LOG("connect failed: %s", strerror(errno));
+        char *err_ptr = strerror(errno);
+        LOG("connect failed: %s", err_ptr);
+        fprintf(stderr, "connect failed: %s\n", err_ptr);
         return -1;
+    }
+
+    if(send(client_sock_fd, cf.key, strlen(cf.key), 0) == -1)
+    {
+        char *err_ptr = strerror(errno);
+        LOG("login failed: %s", err_ptr);
+        fprintf(stderr, "login failed: %s\n", err_ptr);
+        return -1;
+    }
+    else
+    {
+        char server_msg[BUFFER_SIZE] = {0};
+        long server_msg_size = receive_from_server(client_sock_fd, server_msg, BUFFER_SIZE);
+        if(server_msg_size > 0)
+        {
+            if(strncmp(server_msg, CIPHER, strlen(CIPHER)) == 0)
+            {
+                LOG("login successfully!");
+            }
+            else
+            {
+                LOG("login failed!");
+                fprintf(stderr, "login failed\n");
+                return -1;
+            }
+        }
+        else
+        {
+            char *err_ptr = strerror(errno);
+            LOG("login failed: %s", err_ptr);
+            fprintf(stderr, "login failed: %s\n", err_ptr);
+            return -1;
+        }
     }
 
     return client_sock_fd;
