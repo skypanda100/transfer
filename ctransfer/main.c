@@ -76,7 +76,7 @@ void transfer()
 
     for(;;)
     {
-        tv.tv_sec = 10;
+        tv.tv_sec = 3;
         tv.tv_usec = 0;
         FD_ZERO(&client_fd_set);
         FD_SET(client_sock_fd, &client_fd_set);

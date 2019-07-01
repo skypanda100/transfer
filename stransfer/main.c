@@ -167,7 +167,7 @@ void do_event_poll()
 {
     char buffer[BUFFER_SIZE] = {0};
     struct epoll_event event_poll_event[event_poll_size];
-    int timeout = 20 * 1000;
+    int timeout = 3 * 1000;
     while(1)
     {
         int ret = epoll_wait(event_poll_fd, event_poll_event, event_poll_size, timeout);
