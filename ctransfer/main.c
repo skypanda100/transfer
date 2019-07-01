@@ -121,24 +121,46 @@ void transfer()
                 char *file_ptr = file_ptr_ptr[transfer_index];
                 if(strlen(file_ptr) > 0) {
                     transfer_fp = fopen(file_ptr, "rb");
-                    fseek(transfer_fp, 0L, SEEK_END);
-                    transfer_size = ftell(transfer_fp);
-                    fseek(transfer_fp, 0L, SEEK_SET);
-
-                    char dst_file[1024] = {0};
-                    strcpy(dst_file, cf.dst_dir);
-                    strcat(dst_file, "/");
-                    strcat(dst_file, file_ptr + strlen(cf.src_dir));
-
-                    memcpy(buffer, &transfer_size, sizeof(long));
-                    memcpy(buffer + sizeof(long), dst_file, strlen(dst_file));
-                    if(send(client_sock_fd, buffer, sizeof(long) + strlen(dst_file), 0) == -1)
+                    if(transfer_fp != NULL)
                     {
-                        LOG("send path failed: %s", file_ptr);
-                        if (transfer_fp != NULL) {
-                            fclose(transfer_fp);
-                            transfer_fp = NULL;
+                        fseek(transfer_fp, 0L, SEEK_END);
+                        transfer_size = ftell(transfer_fp);
+                        fseek(transfer_fp, 0L, SEEK_SET);
+
+                        if(transfer_size > 0)
+                        {
+                            char dst_file[1024] = {0};
+                            strcpy(dst_file, cf.dst_dir);
+                            strcat(dst_file, "/");
+                            strcat(dst_file, file_ptr + strlen(cf.src_dir));
+
+                            memcpy(buffer, &transfer_size, sizeof(long));
+                            memcpy(buffer + sizeof(long), dst_file, strlen(dst_file));
+                            if(send(client_sock_fd, buffer, sizeof(long) + strlen(dst_file), 0) == -1)
+                            {
+                                LOG("send path failed: %s", file_ptr);
+                                if (transfer_fp != NULL) {
+                                    fclose(transfer_fp);
+                                    transfer_fp = NULL;
+                                }
+                            }
+                            else
+                            {
+                                LOG("send path successfully: %s", file_ptr);
+                            }
                         }
+                        else
+                        {
+                            transfer_index++;
+                            if (transfer_fp != NULL) {
+                                fclose(transfer_fp);
+                                transfer_fp = NULL;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        transfer_index++;
                     }
                 }
             }
@@ -181,8 +203,10 @@ void transfer()
                         else
                         {
                             transfer_index++;
-                            fclose(transfer_fp);
-                            transfer_fp = NULL;
+                            if (transfer_fp != NULL) {
+                                fclose(transfer_fp);
+                                transfer_fp = NULL;
+                            }
                             LOG("receive from server: receive file successfully!");
                         }
                     }
