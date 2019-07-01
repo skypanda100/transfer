@@ -1,5 +1,6 @@
 # transfer
-基于tcp实现文件传输，stransfer作为服务端，ctransfer作为客户端，客户端向服务端传输文件。
+不知为何，我们的某些服务器间用ftp或者sftp无法传输文件，倒是能执行ftp或sftp的某些命令，服务器的运维又不归我们管，
+索性就写个基于tcp的文件传输吧：stransfer作为服务端，ctransfer作为客户端，由客户端向服务端传输文件。
 # stransfer
 使用epoll管理多个客户端链接，接收客户端传过来的文件，并将之存放在指定位置。
 
