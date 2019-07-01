@@ -16,6 +16,12 @@ int create_socket()
     int client_sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 //    int enable = 1;
 //    setsockopt(client_sock_fd, IPPROTO_TCP, TCP_NODELAY, (void*)&enable, sizeof(enable));
+//    int keepIdle = 60;
+//    int keepInterval = 10;
+//    int keepCount = 10;
+//    setsockopt(client_sock_fd, SOL_TCP, TCP_KEEPIDLE, (void *)&keepIdle, sizeof(keepIdle));
+//    setsockopt(client_sock_fd, SOL_TCP, TCP_KEEPINTVL, (void *)&keepInterval, sizeof(keepInterval));
+//    setsockopt(client_sock_fd, SOL_TCP, TCP_KEEPCNT, (void *)&keepCount, sizeof(keepCount));
 
     if(client_sock_fd == -1)
     {

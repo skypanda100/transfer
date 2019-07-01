@@ -20,6 +20,8 @@ void transfer();
 
 int main(int argc, const char * argv[])
 {
+    daemon(0, 1);
+
     if(argc != 2)
     {
         fprintf(stderr, "please input conf path!\n");
