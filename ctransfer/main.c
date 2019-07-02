@@ -220,6 +220,7 @@ void transfer()
                 else
                 {
                     LOG("receive from server: server quit!");
+                    close(client_sock_fd);
                     reconnect();
                 }
             }

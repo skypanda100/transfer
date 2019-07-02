@@ -119,6 +119,7 @@ void cancel_event_poll(int fd)
             client_sock_fd_a[client_i] = -1;
             client_file_info_a[client_i].is_login = 0;
             clear_client_file_info(client_i);
+            close(fd);
             LOG("client fd is %d, quit!", fd);
             break;
         }
