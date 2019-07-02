@@ -9,7 +9,7 @@
 #include <limits.h>
 
 #define BUF_LEN         4096
-#define BUFFER_SIZE     1024
+#define BUFFER_SIZE     4096
 #define CIPHER          "@mtt@ is my cat"
 
 typedef struct st_file_info
@@ -27,6 +27,7 @@ typedef struct st_conf
     char ignore[128];
     char src_dir[1024];
     char dst_dir[1024];
+    int buffer_size;
 }conf;
 
 typedef struct st_dir_watch

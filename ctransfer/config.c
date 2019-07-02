@@ -12,6 +12,7 @@ static char *key_log_ptr = "log";
 static char *key_ignore_ptr = "ignore";
 static char *key_src_dir_ptr = "src_dir";
 static char *key_dst_dir_ptr = "dst_dir";
+static char *key_buffer_size_ptr = "buffer_size";
 
 void config(const char *conf_path_ptr)
 {
@@ -23,6 +24,7 @@ void config(const char *conf_path_ptr)
     char val_ignore[128] = {0};
     char val_src_dir[1024] = {0};
     char val_dst_dir[1024] = {0};
+    char val_buffer_size[10] = {0};
     char *buf, *c;
     char buf_i[1024], buf_o[1024];
     FILE *fp;
@@ -148,6 +150,20 @@ void config(const char *conf_path_ptr)
                     val_o = NULL;
                 }
             }
+            else if(strcmp(key, key_buffer_size_ptr) == 0)
+            {
+                sscanf(++c, "%[^\n|^\r]", val_buffer_size);
+                char *val_o = (char *)malloc(strlen(val_buffer_size) + 1);
+                if(val_o != NULL)
+                {
+                    memset(val_o, 0, strlen(val_buffer_size) + 1);
+                    a_trim(val_o, val_buffer_size);
+                    if(val_o && strlen(val_o) > 0)
+                        strcpy(val_buffer_size, val_o);
+                    free(val_o);
+                    val_o = NULL;
+                }
+            }
         }
     }
     fclose(fp);
@@ -158,15 +174,15 @@ void config(const char *conf_path_ptr)
         exit(-1);
     }
 
-    if(atoi(val_port) < 1 || atoi(val_port) > 65535)
-    {
-        fprintf(stderr, "port must be 1 ~ 65535!\n");
-        exit(-1);
-    }
-
     if(strlen(val_port) == 0)
     {
         fprintf(stderr, "port can not be empty!\n");
+        exit(-1);
+    }
+
+    if(atoi(val_port) < 1 || atoi(val_port) > 65535)
+    {
+        fprintf(stderr, "port must be 1 ~ 65535!\n");
         exit(-1);
     }
 
@@ -188,6 +204,18 @@ void config(const char *conf_path_ptr)
         exit(-1);
     }
 
+    if(strlen(val_buffer_size) == 0)
+    {
+        fprintf(stderr, "buffer size can not be empty!\n");
+        exit(-1);
+    }
+
+    if(atoi(val_buffer_size) < 1 || atoi(val_buffer_size) > 4096)
+    {
+        fprintf(stderr, "buffer size must be 1 ~ 4096!\n");
+        exit(-1);
+    }
+
     memset(&cf, 0, sizeof(conf));
     strcpy(cf.host, val_host);
     cf.port = atoi(val_port);
@@ -196,4 +224,5 @@ void config(const char *conf_path_ptr)
     strcpy(cf.ignore, val_ignore);
     strcpy(cf.src_dir, val_src_dir);
     strcpy(cf.dst_dir, val_dst_dir);
+    cf.buffer_size = atoi(val_buffer_size);
 }

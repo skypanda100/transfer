@@ -181,7 +181,7 @@ void transfer()
                             {
                                 bzero(buffer, BUFFER_SIZE);
                                 int send_len = 0;
-                                int len = fread(buffer, 1, BUFFER_SIZE, transfer_fp);
+                                int len = fread(buffer, 1, cf.buffer_size, transfer_fp);
                                 if(len > transfer_size)
                                 {
                                     send_len = transfer_size;
@@ -200,10 +200,10 @@ void transfer()
 //                                    LOG("send file %d:%d successfully!", transfer_index, len);
                                 }
                                 transfer_size -= send_len;
-                                if(transfer_size == 0)
-                                {
-                                    break;
-                                }
+//                                if(transfer_size == 0)
+//                                {
+//                                    break;
+//                                }
                             }
                         }
                         else
