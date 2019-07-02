@@ -177,7 +177,7 @@ void transfer()
                     {
                         if(transfer_fp != NULL && transfer_size > 0)
                         {
-                            while(!feof(transfer_fp))
+                            if(!feof(transfer_fp))
                             {
                                 bzero(buffer, BUFFER_SIZE);
                                 int send_len = 0;
@@ -197,7 +197,7 @@ void transfer()
                                 }
                                 else
                                 {
-                                    LOG("send file %d:%d successfully!", transfer_index, len);
+//                                    LOG("send file %d:%d successfully!", transfer_index, len);
                                 }
                                 transfer_size -= send_len;
                                 if(transfer_size == 0)
