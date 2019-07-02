@@ -9,8 +9,9 @@
     $ cd /root/stransfer
     $ mkdir build
     $ cd build
-    $ cmake ..
+    $ cmake -DCMAKE_INSTALL_PREFIX=/usr/local/ ..
     $ make
+    $ sudo make install
     ```
 * conf
     ```bash
@@ -26,8 +27,7 @@
     ```
 * execute  
     ```bash
-    $ cd /root/stransfer/build
-    $ ./stransfer /root/stransfer/conf/example.conf
+    $ stransfer /root/stransfer/conf/example.conf
     ```
 # ctransfer
 使用select管理socket链接，使用inotify监听指定目录下的文件状态，并根据状态将文件传输给服务端。
@@ -38,8 +38,9 @@
     $ cd /root/ctransfer
     $ mkdir build
     $ cd build
-    $ cmake ..
+    $ cmake -DCMAKE_INSTALL_PREFIX=/usr/local/ ..
     $ make
+    $ sudo make install
     ```
 * conf
     ```bash
@@ -56,11 +57,12 @@
     src_dir={dir}
     # 目标目录
     dst_dir={dir}
+    # 每次传输的大小(1~4096)
+    buffer_size={size}
     # 日志目录
     log={dir}
     ```
 * execute  
     ```bash
-    $ cd /root/ctransfer/build
-    $ ./ctransfer /root/ctransfer/conf/example.conf
+    $ ctransfer /root/ctransfer/conf/example.conf
     ```
