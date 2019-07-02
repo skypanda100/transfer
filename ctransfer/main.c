@@ -192,8 +192,12 @@ void transfer()
                                 }
                                 if(send(client_sock_fd, buffer, send_len, 0) == -1)
                                 {
-                                    LOG("send file failed!");
+                                    LOG("send file failed: %s", strerror(errno));
                                     break;
+                                }
+                                else
+                                {
+                                    LOG("send file %d:%d successfully!", transfer_index, len);
                                 }
                                 transfer_size -= send_len;
                                 if(transfer_size == 0)

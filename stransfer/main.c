@@ -269,6 +269,7 @@ void do_event_poll()
                                         LOG("client fd is %d, write file failed!", client_sock_fd_a[client_i]);
                                         clear_client_file_info(client_i);
                                     }
+                                    LOG("client fd is %d, remain size is %ld!", client_sock_fd_a[client_i], client_file_info_a[client_i].remain_size);
                                 }
                             }
                         }
