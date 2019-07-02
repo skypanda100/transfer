@@ -9,7 +9,7 @@
 #include <limits.h>
 
 #define BUF_LEN         4096
-#define BUFFER_SIZE     4096
+#define BUFFER_SIZE     1024
 #define CIPHER          "@mtt@ is my cat"
 
 typedef struct st_file_info
