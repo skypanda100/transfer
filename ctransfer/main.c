@@ -68,6 +68,7 @@ void transfer()
     // socket message
     char buffer[BUFFER_SIZE] = {0};
     char server_msg[BUFFER_SIZE] = {0};
+    long server_msg_size = 0;
     // transfer file
     FILE *transfer_fp = NULL;
     long transfer_size = 0;
@@ -83,10 +84,29 @@ void transfer()
         FD_ZERO(&client_fd_set);
         FD_SET(client_sock_fd, &client_fd_set);
 
+        select(client_sock_fd + 1, &client_fd_set, NULL, NULL, &tv);
+        if(FD_ISSET(client_sock_fd, &client_fd_set))
+        {
+            server_msg_size = receive_from_server(client_sock_fd, server_msg, BUFFER_SIZE);
+            if(server_msg_size < 0)
+            {
+                LOG("receive from server: server quit!");
+                close(client_sock_fd);
+                reconnect();
+                if(transfer_fp != NULL)
+                {
+                    fclose(transfer_fp);
+                    transfer_fp = NULL;
+                }
+                continue;
+            }
+        }
+
         if(transfer_index >= file_len)
         {
             // free
-            for(int i = 0;i < file_len;i++) {
+            for(int i = 0;i < file_len;i++)
+            {
                 free(file_ptr_ptr[i]);
                 file_ptr_ptr[i] = NULL;
             }
@@ -121,7 +141,8 @@ void transfer()
             if(transfer_fp == NULL)
             {
                 char *file_ptr = file_ptr_ptr[transfer_index];
-                if(strlen(file_ptr) > 0) {
+                if(strlen(file_ptr) > 0)
+                {
                     transfer_fp = fopen(file_ptr, "rb");
                     if(transfer_fp != NULL)
                     {
@@ -141,7 +162,8 @@ void transfer()
                             if(send(client_sock_fd, buffer, sizeof(long) + strlen(dst_file), 0) == -1)
                             {
                                 LOG("send path failed: %s", file_ptr);
-                                if (transfer_fp != NULL) {
+                                if(transfer_fp != NULL)
+                                {
                                     fclose(transfer_fp);
                                     transfer_fp = NULL;
                                 }
@@ -154,7 +176,8 @@ void transfer()
                         else
                         {
                             transfer_index++;
-                            if (transfer_fp != NULL) {
+                            if(transfer_fp != NULL)
+                            {
                                 fclose(transfer_fp);
                                 transfer_fp = NULL;
                             }
@@ -166,66 +189,51 @@ void transfer()
                     }
                 }
             }
-            select(client_sock_fd + 1, &client_fd_set, NULL, NULL, &tv);
-            if(FD_ISSET(client_sock_fd, &client_fd_set))
+            if(server_msg_size > 0)
             {
-                bzero(server_msg, BUFFER_SIZE);
-                long server_msg_size = receive_from_server(client_sock_fd, server_msg, BUFFER_SIZE);
-                if(server_msg_size > 0)
+                if(strncmp(server_msg, CIPHER, strlen(CIPHER)) == 0)
                 {
-                    if(strncmp(server_msg, CIPHER, strlen(CIPHER)) == 0)
+                    if(transfer_fp != NULL && transfer_size > 0)
                     {
-                        if(transfer_fp != NULL && transfer_size > 0)
+                        if(!feof(transfer_fp))
                         {
-                            if(!feof(transfer_fp))
+                            bzero(buffer, BUFFER_SIZE);
+                            int send_len = 0;
+                            int len = fread(buffer, 1, cf.buffer_size, transfer_fp);
+                            if(len > transfer_size)
                             {
-                                bzero(buffer, BUFFER_SIZE);
-                                int send_len = 0;
-                                int len = fread(buffer, 1, cf.buffer_size, transfer_fp);
-                                if(len > transfer_size)
-                                {
-                                    send_len = transfer_size;
-                                }
-                                else
-                                {
-                                    send_len = len;
-                                }
-                                if(send(client_sock_fd, buffer, send_len, 0) == -1)
-                                {
-                                    LOG("send file failed: %s", strerror(errno));
-                                    break;
-                                }
-                                else
-                                {
+                                send_len = transfer_size;
+                            }
+                            else
+                            {
+                                send_len = len;
+                            }
+                            if(send(client_sock_fd, buffer, send_len, 0) == -1)
+                            {
+                                LOG("send file failed: %s", strerror(errno));
+//                                break;
+                            }
+                            else
+                            {
 //                                    LOG("send file %d:%d successfully!", transfer_index, len);
-                                }
-                                transfer_size -= send_len;
+                            }
+                            transfer_size -= send_len;
 //                                if(transfer_size == 0)
 //                                {
 //                                    break;
 //                                }
-                            }
-                        }
-                        else
-                        {
-                            transfer_index++;
-                            if (transfer_fp != NULL) {
-                                fclose(transfer_fp);
-                                transfer_fp = NULL;
-                            }
-                            LOG("receive from server: receive file successfully!");
                         }
                     }
-                }
-                else if(server_msg_size < 0)
-                {
-                    LOG("receive from server failed!");
-                }
-                else
-                {
-                    LOG("receive from server: server quit!");
-                    close(client_sock_fd);
-                    reconnect();
+                    else
+                    {
+                        transfer_index++;
+                        if(transfer_fp != NULL)
+                        {
+                            fclose(transfer_fp);
+                            transfer_fp = NULL;
+                        }
+                        LOG("receive from server: receive file successfully!");
+                    }
                 }
             }
         }
