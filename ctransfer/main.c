@@ -88,16 +88,16 @@ void transfer()
         if(FD_ISSET(client_sock_fd, &client_fd_set))
         {
             server_msg_size = receive_from_server(client_sock_fd, server_msg, BUFFER_SIZE);
-            if(server_msg_size < 0)
+            if(server_msg_size <= 0)
             {
                 LOG("receive from server: server quit!");
                 close(client_sock_fd);
-                reconnect();
                 if(transfer_fp != NULL)
                 {
                     fclose(transfer_fp);
                     transfer_fp = NULL;
                 }
+                reconnect();
                 continue;
             }
         }
