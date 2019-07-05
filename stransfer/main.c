@@ -24,7 +24,7 @@ int create_dir(const char *path_ptr);
 
 int main(int argc, const char * argv[])
 {
-    daemon(0, 1);
+//    daemon(0, 1);
 
     if(argc != 2)
     {

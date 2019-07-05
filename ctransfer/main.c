@@ -83,6 +83,7 @@ void transfer()
         tv.tv_usec = 100;
         FD_ZERO(&client_fd_set);
         FD_SET(client_sock_fd, &client_fd_set);
+        bzero(server_msg, BUFFER_SIZE);
 
         select(client_sock_fd + 1, &client_fd_set, NULL, NULL, &tv);
         if(FD_ISSET(client_sock_fd, &client_fd_set))
