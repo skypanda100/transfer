@@ -79,8 +79,8 @@ void transfer()
 
     for(;;)
     {
-        tv.tv_sec = 0;
-        tv.tv_usec = 100;
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
         FD_ZERO(&client_fd_set);
         FD_SET(client_sock_fd, &client_fd_set);
         bzero(server_msg, BUFFER_SIZE);
@@ -158,10 +158,12 @@ void transfer()
                             strcat(dst_file, "/");
                             strcat(dst_file, file_ptr + strlen(cf.src_dir));
 
+                            int buffer_len = strlen(CIPHER1) + sizeof(long) + strlen(dst_file) + 1;
                             memcpy(buffer, CIPHER1, strlen(CIPHER1));
                             memcpy(buffer + strlen(CIPHER1), &transfer_size, sizeof(long));
                             memcpy(buffer + strlen(CIPHER1) + sizeof(long), dst_file, strlen(dst_file));
-                            if(send(client_sock_fd, buffer, strlen(CIPHER1) + sizeof(long) + strlen(dst_file), 0) == -1)
+                            buffer[buffer_len - 1] = '\0';
+                            if(send(client_sock_fd, buffer, buffer_len, 0) == -1)
                             {
                                 LOG("send path failed: %s", file_ptr);
                                 if(transfer_fp != NULL)
