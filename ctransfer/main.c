@@ -190,20 +190,27 @@ void transfer()
                     }
                 }
             }
-            if(strncmp(server_msg, CIPHER2, strlen(CIPHER2)) == 0)
+            else
             {
-                int is_done = 0;
-                if(transfer_fp != NULL)
+                if(strncmp(server_msg, CIPHER2, strlen(CIPHER2)) == 0)
                 {
-                    if(!feof(transfer_fp))
+                    int is_done = 0;
+                    if(transfer_fp != NULL)
                     {
-                        bzero(buffer, BUFFER_SIZE);
-                        int len = fread(buffer, 1, cf.buffer_size, transfer_fp);
-                        if(len > 0)
+                        if(!feof(transfer_fp))
                         {
-                            if(send(client_sock_fd, buffer, len, 0) == -1)
+                            bzero(buffer, BUFFER_SIZE);
+                            int len = fread(buffer, 1, cf.buffer_size, transfer_fp);
+                            if(len > 0)
                             {
-                                LOG("send file failed: %s", strerror(errno));
+                                if(send(client_sock_fd, buffer, len, 0) == -1)
+                                {
+                                    LOG("send file failed: %s", strerror(errno));
+                                }
+                            }
+                            else
+                            {
+                                is_done = 1;
                             }
                         }
                         else
@@ -211,26 +218,22 @@ void transfer()
                             is_done = 1;
                         }
                     }
-                    else
+                    if(is_done)
                     {
-                        is_done = 1;
-                    }
-                }
-                if(is_done)
-                {
-                    transfer_index++;
-                    if(transfer_fp != NULL)
-                    {
-                        fclose(transfer_fp);
-                        transfer_fp = NULL;
-                    }
-                    if(send(client_sock_fd, CIPHER3, strlen(CIPHER3), 0) == -1)
-                    {
-                        LOG("send file failed: %s", strerror(errno));
-                    }
-                    else
-                    {
-                        LOG("send file successfully!");
+                        transfer_index++;
+                        if(transfer_fp != NULL)
+                        {
+                            fclose(transfer_fp);
+                            transfer_fp = NULL;
+                        }
+                        if(send(client_sock_fd, CIPHER3, strlen(CIPHER3), 0) == -1)
+                        {
+                            LOG("send file failed: %s", strerror(errno));
+                        }
+                        else
+                        {
+                            LOG("send file successfully!");
+                        }
                     }
                 }
             }
