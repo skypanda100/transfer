@@ -53,7 +53,7 @@ int create_socket()
         long server_msg_size = receive_from_server(client_sock_fd, server_msg, BUFFER_SIZE);
         if(server_msg_size > 0)
         {
-            if(strncmp(server_msg, CIPHER, strlen(CIPHER)) == 0)
+            if(strncmp(server_msg, CIPHER2, strlen(CIPHER2)) == 0)
             {
                 LOG("login successfully!");
             }

@@ -79,8 +79,8 @@ void transfer()
 
     for(;;)
     {
-        tv.tv_sec = 3;
-        tv.tv_usec = 0;
+        tv.tv_sec = 0;
+        tv.tv_usec = 100;
         FD_ZERO(&client_fd_set);
         FD_SET(client_sock_fd, &client_fd_set);
 
@@ -157,9 +157,10 @@ void transfer()
                             strcat(dst_file, "/");
                             strcat(dst_file, file_ptr + strlen(cf.src_dir));
 
-                            memcpy(buffer, &transfer_size, sizeof(long));
-                            memcpy(buffer + sizeof(long), dst_file, strlen(dst_file));
-                            if(send(client_sock_fd, buffer, sizeof(long) + strlen(dst_file), 0) == -1)
+                            memcpy(buffer, CIPHER1, strlen(CIPHER1));
+                            memcpy(buffer + strlen(CIPHER1), &transfer_size, sizeof(long));
+                            memcpy(buffer + strlen(CIPHER1) + sizeof(long), dst_file, strlen(dst_file));
+                            if(send(client_sock_fd, buffer, strlen(CIPHER1) + sizeof(long) + strlen(dst_file), 0) == -1)
                             {
                                 LOG("send path failed: %s", file_ptr);
                                 if(transfer_fp != NULL)
@@ -189,50 +190,47 @@ void transfer()
                     }
                 }
             }
-            if(server_msg_size > 0)
+            if(strncmp(server_msg, CIPHER2, strlen(CIPHER2)) == 0)
             {
-                if(strncmp(server_msg, CIPHER, strlen(CIPHER)) == 0)
+                int is_done = 0;
+                if(transfer_fp != NULL)
                 {
-                    if(transfer_fp != NULL && transfer_size > 0)
+                    if(!feof(transfer_fp))
                     {
-                        if(!feof(transfer_fp))
+                        bzero(buffer, BUFFER_SIZE);
+                        int len = fread(buffer, 1, cf.buffer_size, transfer_fp);
+                        if(len > 0)
                         {
-                            bzero(buffer, BUFFER_SIZE);
-                            int send_len = 0;
-                            int len = fread(buffer, 1, cf.buffer_size, transfer_fp);
-                            if(len > transfer_size)
-                            {
-                                send_len = transfer_size;
-                            }
-                            else
-                            {
-                                send_len = len;
-                            }
-                            if(send(client_sock_fd, buffer, send_len, 0) == -1)
+                            if(send(client_sock_fd, buffer, len, 0) == -1)
                             {
                                 LOG("send file failed: %s", strerror(errno));
-//                                break;
                             }
-                            else
-                            {
-//                                    LOG("send file %d:%d successfully!", transfer_index, len);
-                            }
-                            transfer_size -= send_len;
-//                                if(transfer_size == 0)
-//                                {
-//                                    break;
-//                                }
+                        }
+                        else
+                        {
+                            is_done = 1;
                         }
                     }
                     else
                     {
-                        transfer_index++;
-                        if(transfer_fp != NULL)
-                        {
-                            fclose(transfer_fp);
-                            transfer_fp = NULL;
-                        }
-                        LOG("receive from server: receive file successfully!");
+                        is_done = 1;
+                    }
+                }
+                if(is_done)
+                {
+                    transfer_index++;
+                    if(transfer_fp != NULL)
+                    {
+                        fclose(transfer_fp);
+                        transfer_fp = NULL;
+                    }
+                    if(send(client_sock_fd, CIPHER3, strlen(CIPHER3), 0) == -1)
+                    {
+                        LOG("send file failed: %s", strerror(errno));
+                    }
+                    else
+                    {
+                        LOG("send file successfully!");
                     }
                 }
             }

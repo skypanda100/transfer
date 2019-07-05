@@ -10,7 +10,9 @@
 
 #define BUF_LEN         4096
 #define BUFFER_SIZE     4096
-#define CIPHER          "@mtt@ is my cat"
+#define CIPHER1         "@mtt@start"
+#define CIPHER2         "@mtt@transferring"
+#define CIPHER3         "@mtt@end"
 
 typedef struct st_file_info
 {

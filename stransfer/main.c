@@ -217,7 +217,7 @@ void do_event_poll()
                                 if(strcmp(key, cf.key) == 0)
                                 {
                                     client_file_info_a[client_i].is_login = 1;
-                                    send(client_sock_fd_a[client_i], CIPHER, strlen(CIPHER), 0);
+                                    send(client_sock_fd_a[client_i], CIPHER2, strlen(CIPHER2), 0);
                                     LOG("client fd is %d, join us successfully!", client_sock_fd_a[client_i]);
                                 }
                                 else
@@ -231,7 +231,7 @@ void do_event_poll()
                             {
                                 if(client_file_info_a[client_i].fp == NULL)
                                 {
-                                    char *path_ptr = buffer + sizeof(long);
+                                    char *path_ptr = buffer + strlen(CIPHER1) + sizeof(long);
                                     if(create_dir(path_ptr) == 0)
                                     {
                                         FILE *fp = fopen(path_ptr, "wb");
@@ -241,9 +241,9 @@ void do_event_poll()
                                         }
                                         else
                                         {
-                                            memcpy(&(client_file_info_a[client_i].remain_size), buffer, sizeof(long));
+                                            memcpy(&(client_file_info_a[client_i].remain_size), buffer + strlen(CIPHER1), sizeof(long));
                                             client_file_info_a[client_i].fp = fp;
-                                            send(client_sock_fd_a[client_i], CIPHER, strlen(CIPHER), 0);
+                                            send(client_sock_fd_a[client_i], CIPHER2, strlen(CIPHER2), 0);
                                             LOG("client fd is %d, create file successfully: %s, %ld", client_sock_fd_a[client_i], path_ptr, client_file_info_a[client_i].remain_size);
                                         }
                                     }
@@ -254,26 +254,16 @@ void do_event_poll()
                                 }
                                 else
                                 {
-                                    fwrite(buffer, 1, receive_size, client_file_info_a[client_i].fp);
-                                    client_file_info_a[client_i].remain_size -= receive_size;
-                                    if(client_file_info_a[client_i].remain_size == 0)
+                                    if(strncmp(buffer, CIPHER3, strlen(CIPHER3)) == 0)
                                     {
-                                        // end
+                                        clear_client_file_info(client_i);
                                         LOG("client fd is %d, write file successfully!", client_sock_fd_a[client_i]);
-                                        clear_client_file_info(client_i);
-                                        send(client_sock_fd_a[client_i], CIPHER, strlen(CIPHER), 0);
-                                    }
-                                    else if(client_file_info_a[client_i].remain_size < 0)
-                                    {
-                                        // error
-                                        LOG("client fd is %d, write file failed!", client_sock_fd_a[client_i]);
-                                        clear_client_file_info(client_i);
                                     }
                                     else
                                     {
-                                        send(client_sock_fd_a[client_i], CIPHER, strlen(CIPHER), 0);
+                                        fwrite(buffer, 1, receive_size, client_file_info_a[client_i].fp);
                                     }
-//                                    LOG("client fd is %d, remain size is %ld!", client_sock_fd_a[client_i], client_file_info_a[client_i].remain_size);
+                                    send(client_sock_fd_a[client_i], CIPHER2, strlen(CIPHER2), 0);
                                 }
                             }
                         }

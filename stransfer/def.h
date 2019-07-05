@@ -9,7 +9,9 @@
 #define BUFFER_SIZE     4096
 #define BACKLOG         64
 #define CLIENT_MAX      1024
-#define CIPHER          "@mtt@ is my cat"
+#define CIPHER1         "@mtt@start"
+#define CIPHER2         "@mtt@transferring"
+#define CIPHER3         "@mtt@end"
 
 typedef struct st_file_info
 {
