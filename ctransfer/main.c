@@ -73,14 +73,15 @@ void transfer()
     FILE *transfer_fp = NULL;
     long transfer_size = 0;
     int transfer_index = 0;
+    int is_transferring = 0;
     // temp files
     char **file_ptr_ptr = NULL;
     int file_len = 0;
 
     for(;;)
     {
-        tv.tv_sec = 1;
-        tv.tv_usec = 0;
+        tv.tv_sec = 0;
+        tv.tv_usec = 10;
         FD_ZERO(&client_fd_set);
         FD_SET(client_sock_fd, &client_fd_set);
         bzero(server_msg, BUFFER_SIZE);
@@ -174,6 +175,7 @@ void transfer()
                             }
                             else
                             {
+                                is_transferring = 1;
                                 LOG("send path successfully: %s", file_ptr);
                             }
                         }
@@ -223,19 +225,27 @@ void transfer()
                     }
                     if(is_done)
                     {
-                        transfer_index++;
-                        if(transfer_fp != NULL)
+                        if(!is_transferring)
                         {
-                            fclose(transfer_fp);
-                            transfer_fp = NULL;
-                        }
-                        if(send(client_sock_fd, CIPHER3, strlen(CIPHER3), 0) == -1)
-                        {
-                            LOG("send file failed: %s", strerror(errno));
+                            transfer_index++;
+                            if(transfer_fp != NULL)
+                            {
+                                fclose(transfer_fp);
+                                transfer_fp = NULL;
+                            }
                         }
                         else
                         {
-                            LOG("send file successfully!");
+                            if(send(client_sock_fd, CIPHER3, strlen(CIPHER3), 0) == -1)
+                            {
+                                is_transferring = 0;
+                                LOG("send file failed: %s", strerror(errno));
+                            }
+                            else
+                            {
+                                is_transferring = 0;
+                                LOG("send file successfully!");
+                            }
                         }
                     }
                 }

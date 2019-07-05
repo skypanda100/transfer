@@ -262,8 +262,8 @@ void do_event_poll()
                                     else
                                     {
                                         fwrite(buffer, 1, receive_size, client_file_info_a[client_i].fp);
-                                        send(client_sock_fd_a[client_i], CIPHER2, strlen(CIPHER2), 0);
                                     }
+                                    send(client_sock_fd_a[client_i], CIPHER2, strlen(CIPHER2), 0);
                                 }
                             }
                         }
