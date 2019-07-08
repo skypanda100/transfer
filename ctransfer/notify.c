@@ -17,7 +17,7 @@ static int is_ignore_file(const char *ignore_ptr, const char *file_name_ptr)
     }
 
     regex_t rgx;
-    if(regcomp(&rgx, ignore_ptr, REG_NOSUB) != 0)
+    if(regcomp(&rgx, ignore_ptr, REG_EXTENDED | REG_NOSUB) != 0)
     {
         LOG("invalid regex pattern!");
         regfree(&rgx);
