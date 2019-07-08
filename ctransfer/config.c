@@ -51,10 +51,10 @@ void config(const char *conf_path_ptr)
             if((c = strchr(buf, '=')) == NULL)
                 continue;
             memset(key, 0, sizeof(key));
-            sscanf(buf, "%[^=|^ |^\t]", key);
+            sscanf(buf, "%[^= \t]", key);
             if(strcmp(key, key_host_ptr) == 0)
             {
-                sscanf(++c, "%[^\n|^\r]", val_host);
+                sscanf(++c, "%[^\n\r]", val_host);
                 char *val_o = (char *)malloc(strlen(val_host) + 1);
                 if(val_o != NULL)
                 {
@@ -68,7 +68,7 @@ void config(const char *conf_path_ptr)
             }
             else if(strcmp(key, key_port_ptr) == 0)
             {
-                sscanf(++c, "%[^\n|^\r]", val_port);
+                sscanf(++c, "%[^\n\r]", val_port);
                 char *val_o = (char *)malloc(strlen(val_port) + 1);
                 if(val_o != NULL)
                 {
@@ -82,7 +82,7 @@ void config(const char *conf_path_ptr)
             }
             else if(strcmp(key, key_key_ptr) == 0)
             {
-                sscanf(++c, "%[^\n|^\r]", val_key);
+                sscanf(++c, "%[^\n\r]", val_key);
                 char *val_o = (char *)malloc(strlen(val_key) + 1);
                 if(val_o != NULL)
                 {
@@ -96,7 +96,7 @@ void config(const char *conf_path_ptr)
             }
             else if(strcmp(key, key_log_ptr) == 0)
             {
-                sscanf(++c, "%[^\n|^\r]", val_log);
+                sscanf(++c, "%[^\n\r]", val_log);
                 char *val_o = (char *)malloc(strlen(val_log) + 1);
                 if(val_o != NULL)
                 {
@@ -110,7 +110,7 @@ void config(const char *conf_path_ptr)
             }
             else if(strcmp(key, key_ignore_ptr) == 0)
             {
-                sscanf(++c, "%[^\n|^\r]", val_ignore);
+                sscanf(++c, "%[^\n\r]", val_ignore);
                 char *val_o = (char *)malloc(strlen(val_ignore) + 1);
                 if(val_o != NULL)
                 {
@@ -124,7 +124,7 @@ void config(const char *conf_path_ptr)
             }
             else if(strcmp(key, key_src_dir_ptr) == 0)
             {
-                sscanf(++c, "%[^\n|^\r]", val_src_dir);
+                sscanf(++c, "%[^\n\r]", val_src_dir);
                 char *val_o = (char *)malloc(strlen(val_src_dir) + 1);
                 if(val_o != NULL)
                 {
@@ -138,7 +138,7 @@ void config(const char *conf_path_ptr)
             }
             else if(strcmp(key, key_dst_dir_ptr) == 0)
             {
-                sscanf(++c, "%[^\n|^\r]", val_dst_dir);
+                sscanf(++c, "%[^\n\r]", val_dst_dir);
                 char *val_o = (char *)malloc(strlen(val_dst_dir) + 1);
                 if(val_o != NULL)
                 {
@@ -152,7 +152,7 @@ void config(const char *conf_path_ptr)
             }
             else if(strcmp(key, key_buffer_size_ptr) == 0)
             {
-                sscanf(++c, "%[^\n|^\r]", val_buffer_size);
+                sscanf(++c, "%[^\n\r]", val_buffer_size);
                 char *val_o = (char *)malloc(strlen(val_buffer_size) + 1);
                 if(val_o != NULL)
                 {
