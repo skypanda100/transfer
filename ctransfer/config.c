@@ -210,9 +210,9 @@ void config(const char *conf_path_ptr)
         exit(-1);
     }
 
-    if(atoi(val_buffer_size) < 1 || atoi(val_buffer_size) > 4096)
+    if(atoi(val_buffer_size) < 1/* || atoi(val_buffer_size) > 4096*/)
     {
-        fprintf(stderr, "buffer size must be 1 ~ 4096!\n");
+        fprintf(stderr, "buffer size must be 1 ~ !\n");
         exit(-1);
     }
 
