@@ -6,7 +6,7 @@
 #define STRANSFER_DEF_H
 #include <stdio.h>
 
-#define BUFFER_SIZE     4096
+#define BUFFER_SIZE     1024 * 1024
 #define BACKLOG         64
 #define CLIENT_MAX      1024
 #define CIPHER1         "@mtt@start"
