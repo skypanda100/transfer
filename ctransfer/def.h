@@ -9,7 +9,7 @@
 #include <limits.h>
 
 #define BUF_LEN         4096
-#define BUFFER_SIZE     4096
+#define BUFFER_SIZE     1024 * 1024
 #define CIPHER1         "@mtt@start"
 #define CIPHER2         "@mtt@transferring"
 #define CIPHER3         "@mtt@end"
