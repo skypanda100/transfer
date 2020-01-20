@@ -172,6 +172,7 @@ int create_dir(const char *path_ptr)
 void do_event_poll()
 {
     char buffer[BUFFER_SIZE] = {0};
+    char key[BUFFER_SIZE] = {0};
     struct epoll_event event_poll_event[event_poll_size];
     int timeout = -1;
     while(1)
@@ -212,7 +213,7 @@ void do_event_poll()
                             // check key
                             if(client_file_info_a[client_i].is_login == 0)
                             {
-                                char key[BUFFER_SIZE] = {0};
+                                memset(key, 0, BUFFER_SIZE);
                                 strncpy(key, buffer, receive_size);
                                 if(strcmp(key, cf.key) == 0)
                                 {
