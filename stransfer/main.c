@@ -259,12 +259,12 @@ void do_event_poll()
                                     {
                                         fwrite(buffer, 1, receive_size, client_file_info_a[client_i].fp);
                                         client_file_info_a[client_i].remain_size -= receive_size;
-                                    }
-                                    else
-                                    {
-                                        LOG("client fd is %d, write file successfully, remain size is %d!", client_sock_fd_a[client_i], client_file_info_a[client_i].remain_size);
-                                        send(client_sock_fd_a[client_i], CIPHER3, strlen(CIPHER3), 0);
-                                        clear_client_file_info(client_i);
+                                        if(client_file_info_a[client_i].remain_size <= 0)
+                                        {
+                                            LOG("client fd is %d, write file successfully, remain size is %d!", client_sock_fd_a[client_i], client_file_info_a[client_i].remain_size);
+                                            send(client_sock_fd_a[client_i], CIPHER3, strlen(CIPHER3), 0);
+                                            clear_client_file_info(client_i);
+                                        }
                                     }
                                 }
                             }
