@@ -65,6 +65,7 @@ void transfer()
     // select
     fd_set client_fd_set;
     struct timeval tv;
+    int is_wait = 0;
     // socket message
     char buffer[BUFFER_SIZE] = {0};
     char server_msg[BUFFER_SIZE] = {0};
@@ -85,8 +86,15 @@ void transfer()
         FD_ZERO(&client_fd_set);
         FD_SET(client_sock_fd, &client_fd_set);
         bzero(server_msg, BUFFER_SIZE);
-
-        select(client_sock_fd + 1, &client_fd_set, NULL, NULL, &tv);
+        if(is_wait)
+        {
+            select(client_sock_fd + 1, &client_fd_set, NULL, NULL, NULL);
+        }
+        else
+        {
+            select(client_sock_fd + 1, &client_fd_set, NULL, NULL, &tv);
+        }
+        is_wait = 0;
         if(FD_ISSET(client_sock_fd, &client_fd_set))
         {
             server_msg_size = receive_from_server(client_sock_fd, server_msg, BUFFER_SIZE);
@@ -178,6 +186,7 @@ void transfer()
                                 is_transferring = 1;
                                 LOG("send path successfully: %s", file_ptr);
                             }
+                            is_wait = 1;
                         }
                         else
                         {
@@ -197,25 +206,18 @@ void transfer()
             }
             else
             {
-                if(strncmp(server_msg, CIPHER2, strlen(CIPHER2)) == 0)
+                int is_done = 0;
+                if(transfer_fp != NULL)
                 {
-                    int is_done = 0;
-                    if(transfer_fp != NULL)
+                    if(!feof(transfer_fp))
                     {
-                        if(!feof(transfer_fp))
+                        bzero(buffer, BUFFER_SIZE);
+                        int len = fread(buffer, 1, cf.buffer_size, transfer_fp);
+                        if(len > 0)
                         {
-                            bzero(buffer, BUFFER_SIZE);
-                            int len = fread(buffer, 1, cf.buffer_size, transfer_fp);
-                            if(len > 0)
+                            if(send(client_sock_fd, buffer, len, 0) == -1)
                             {
-                                if(send(client_sock_fd, buffer, len, 0) == -1)
-                                {
-                                    LOG("send file failed: %s", strerror(errno));
-                                }
-                            }
-                            else
-                            {
-                                is_done = 1;
+                                LOG("send file failed: %s", strerror(errno));
                             }
                         }
                         else
@@ -223,9 +225,16 @@ void transfer()
                             is_done = 1;
                         }
                     }
-                    if(is_done)
+                    else
                     {
-                        if(!is_transferring)
+                        is_done = 1;
+                    }
+                }
+                if(is_done)
+                {
+                    if(!is_transferring)
+                    {
+                        if(strncmp(server_msg, CIPHER3, strlen(CIPHER3)) == 0)
                         {
                             transfer_index++;
                             if(transfer_fp != NULL)
@@ -234,19 +243,12 @@ void transfer()
                                 transfer_fp = NULL;
                             }
                         }
-                        else
-                        {
-                            if(send(client_sock_fd, CIPHER3, strlen(CIPHER3), 0) == -1)
-                            {
-                                is_transferring = 0;
-                                LOG("send file failed: %s", strerror(errno));
-                            }
-                            else
-                            {
-                                is_transferring = 0;
-                                LOG("send file successfully!");
-                            }
-                        }
+                    }
+                    else
+                    {
+                        is_wait = 1;
+                        is_transferring = 0;
+                        LOG("send file successfully!");
                     }
                 }
             }
