@@ -62,7 +62,7 @@
     src_dir={dir}
     # 目标目录
     dst_dir={dir}
-    # 每次传输的大小(1~4096)
+    # 每次传输的大小(1~1048576)
     buffer_size={size}
     # 日志目录
     log={dir}
