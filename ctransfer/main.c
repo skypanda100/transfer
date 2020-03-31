@@ -153,6 +153,8 @@ void transfer()
                 char *file_ptr = file_ptr_ptr[transfer_index];
                 if(strlen(file_ptr) > 0)
                 {
+                    sleep(cf.delay);
+                    //
                     transfer_fp = fopen(file_ptr, "rb");
                     if(transfer_fp != NULL)
                     {

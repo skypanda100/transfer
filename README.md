@@ -66,6 +66,8 @@
     buffer_size={size}
     # 日志目录
     log={dir}
+    # 延时
+    delay={delay}
     ```
 * execute  
     ```bash

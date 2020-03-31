@@ -30,6 +30,7 @@ typedef struct st_conf
     char src_dir[1024];
     char dst_dir[1024];
     int buffer_size;
+    int delay;
 }conf;
 
 typedef struct st_dir_watch
