@@ -66,6 +66,20 @@ static int add_dir_to_watch_list(notification *ntf_ptr, const char *path_ptr)
     return wd;
 }
 
+static int is_file_exist(const char *file_path_ptr)
+{
+    int exist = 0;
+    for(int i = 0; i < transfer_file_len; i++)
+    {
+        if(strcmp(transfer_file_ptr_ptr[i], file_path_ptr) == 0)
+        {
+            exist = 1;
+            break;
+        }
+    }
+    return exist;
+}
+
 void watch()
 {
     notification ntf;
@@ -160,9 +174,12 @@ void watch()
                                     {
                                         LOG("pthread_mutex_lock failed!");
                                     }
-                                    transfer_file_len++;
-                                    transfer_file_ptr_ptr = (char **)realloc(transfer_file_ptr_ptr, sizeof(char *) * transfer_file_len);
-                                    transfer_file_ptr_ptr[transfer_file_len - 1] = strdup(src_file_path);
+                                    if(is_file_exist(src_file_path) == 0)
+                                    {
+                                        transfer_file_len++;
+                                        transfer_file_ptr_ptr = (char **)realloc(transfer_file_ptr_ptr, sizeof(char *) * transfer_file_len);
+                                        transfer_file_ptr_ptr[transfer_file_len - 1] = strdup(src_file_path);
+                                    }
                                     if(pthread_mutex_unlock(&mutex) != 0)
                                     {
                                         LOG("pthread_mutex_unlock failed!");
