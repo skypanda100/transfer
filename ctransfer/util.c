@@ -3,6 +3,7 @@
 //
 
 #include "util.h"
+#include <sys/time.h>
 
 char *l_trim(char *output_ptr, const char *input_ptr)
 {
@@ -100,4 +101,12 @@ void list_dir(const char *path_ptr, char ***dir_ptr_ptr_ptr, size_t *dirs_len_pt
         }
     }
     closedir(d_ptr);
+}
+
+long timestamp()
+{
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+
+    return tv.tv_sec;
 }

@@ -78,6 +78,8 @@ void transfer()
     // temp files
     char **file_ptr_ptr = NULL;
     int file_len = 0;
+    // heart beat
+    long last_timestamp = timestamp();
 
     for(;;)
     {
@@ -100,7 +102,7 @@ void transfer()
             server_msg_size = receive_from_server(client_sock_fd, server_msg, BUFFER_SIZE);
             if(server_msg_size <= 0)
             {
-                LOG("receive from server: server quit!");
+                LOG("receive from server: server quit! server_msg_size is %d, error no is %d!", server_msg_size, errno);
                 close(client_sock_fd);
                 if(transfer_fp != NULL)
                 {
@@ -252,6 +254,28 @@ void transfer()
                         is_transferring = 0;
                         LOG("send file successfully!");
                     }
+                }
+            }
+        }
+        else
+        {
+            // heart beat
+            long cur_timestamp = timestamp();
+            if(cur_timestamp - last_timestamp >= 30)
+            {
+                last_timestamp = cur_timestamp;
+                int buffer_len = strlen(CIPHER4) + sizeof(long);
+                bzero(buffer, BUFFER_SIZE);
+                memcpy(buffer, CIPHER4, strlen(CIPHER4));
+                memcpy(buffer + strlen(CIPHER4), &cur_timestamp, sizeof(long));
+                if(send(client_sock_fd, buffer, buffer_len, 0) == -1)
+                {
+                    LOG("send heart beat failed: %s", strerror(errno));
+                }
+                else
+                {
+                    LOG("send heart beat successfully!");
+                    is_wait = 1;
                 }
             }
         }
