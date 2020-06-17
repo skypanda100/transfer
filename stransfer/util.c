@@ -3,6 +3,7 @@
 //
 
 #include "util.h"
+#include <sys/time.h>
 
 char *l_trim(char *output_ptr, const char *input_ptr)
 {
@@ -66,4 +67,12 @@ int make_dir(const char *path_ptr)
     }
 
     return 0;
+}
+
+long timestamp()
+{
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+
+    return tv.tv_sec;
 }

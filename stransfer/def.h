@@ -12,6 +12,7 @@
 #define CIPHER1         "@mtt@start"
 #define CIPHER2         "@mtt@transferring"
 #define CIPHER3         "@mtt@end"
+#define CIPHER4         "@mtt@heartbeat"
 
 typedef struct st_file_info
 {

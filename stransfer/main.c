@@ -10,6 +10,7 @@ static int server_sock_fd = -1;
 static int event_poll_fd = -1;
 static int event_poll_size = CLIENT_MAX + 1;
 static int client_sock_fd_a[CLIENT_MAX];
+static long client_sock_heart_beat[CLIENT_MAX];
 static file_info client_file_info_a[CLIENT_MAX];
 
 void init_server_socket();
@@ -17,6 +18,7 @@ void init_event_poll_fd();
 void init_client();
 void register_event_poll(int fd, int is_client_fd);
 void cancel_event_poll(int fd);
+void check_heart_beat();
 void clear_client_file_info(int index);
 void do_event_poll();
 int index_of_client_sock_fd_a(int fd);
@@ -68,10 +70,7 @@ void init_client()
     for(int i = 0;i < CLIENT_MAX;i++)
     {
         client_sock_fd_a[i] = -1;
-    }
-
-    for(int i = 0;i < CLIENT_MAX;i++)
-    {
+        client_sock_heart_beat[i] = 0;
         client_file_info_a[i].is_login = 0;
         client_file_info_a[i].remain_size = 0;
         client_file_info_a[i].fp = NULL;
@@ -94,6 +93,7 @@ void register_event_poll(int fd, int is_client_fd)
             {
                 index = client_i;
                 client_sock_fd_a[client_i] = fd;
+                client_sock_heart_beat[client_i] = timestamp();
                 clear_client_file_info(client_i);
                 break;
             }
@@ -117,11 +117,28 @@ void cancel_event_poll(int fd)
         if(client_sock_fd_a[client_i] == fd)
         {
             client_sock_fd_a[client_i] = -1;
+            client_sock_heart_beat[client_i] = 0;
             client_file_info_a[client_i].is_login = 0;
             clear_client_file_info(client_i);
             close(fd);
             LOG("client fd is %d, quit!", fd);
             break;
+        }
+    }
+}
+
+void check_heart_beat()
+{
+    long cur_timestamp = timestamp();
+    long timeout = 3600;
+    for(int client_i = 0;client_i < CLIENT_MAX;client_i++)
+    {
+        if(client_sock_fd_a[client_i] != -1)
+        {
+            if((cur_timestamp - client_sock_heart_beat[client_i]) > timeout)
+            {
+                cancel_event_poll(client_sock_fd_a[client_i]);
+            }
         }
     }
 }
@@ -174,7 +191,7 @@ void do_event_poll()
     char buffer[BUFFER_SIZE] = {0};
     char key[BUFFER_SIZE] = {0};
     struct epoll_event event_poll_event[event_poll_size];
-    int timeout = -1;
+    int timeout = 3000;
     while(1)
     {
         int ret = epoll_wait(event_poll_fd, event_poll_event, event_poll_size, timeout);
@@ -185,7 +202,8 @@ void do_event_poll()
         }
         else if(ret == 0)
         {
-//            LOG("%s", "event poll wait timeout!");
+            LOG("%s", "event poll wait timeout, check heart beat!");
+            check_heart_beat();
             continue;
         }
         else
@@ -232,29 +250,42 @@ void do_event_poll()
                             {
                                 if(client_file_info_a[client_i].fp == NULL)
                                 {
-                                    char *path_ptr = buffer + strlen(CIPHER1) + sizeof(long);
-                                    if(create_dir(path_ptr) == 0)
+                                    if(strncmp(CIPHER4, buffer, strlen(CIPHER4)) == 0)
                                     {
-                                        FILE *fp = fopen(path_ptr, "wb");
-                                        if(fp == NULL)
-                                        {
-                                            LOG("client fd is %d, create file failed: %s", client_sock_fd_a[client_i], path_ptr);
-                                        }
-                                        else
-                                        {
-                                            memcpy(&(client_file_info_a[client_i].remain_size), buffer + strlen(CIPHER1), sizeof(long));
-                                            client_file_info_a[client_i].fp = fp;
-                                            send(client_sock_fd_a[client_i], CIPHER2, strlen(CIPHER2), 0);
-                                            LOG("client fd is %d, create file successfully: %s, %ld", client_sock_fd_a[client_i], path_ptr, client_file_info_a[client_i].remain_size);
-                                        }
+                                        // set heart beat time
+                                        memcpy(&(client_sock_heart_beat[client_i]), buffer + strlen(CIPHER4), sizeof(long));
+                                        send(client_sock_fd_a[client_i], CIPHER2, strlen(CIPHER2), 0);
                                     }
                                     else
                                     {
-                                        LOG("client fd is %d, create dir failed: %s", client_sock_fd_a[client_i], path_ptr);
+                                        // set heart beat time
+                                        client_sock_heart_beat[client_i] = timestamp();
+                                        char *path_ptr = buffer + strlen(CIPHER1) + sizeof(long);
+                                        if(create_dir(path_ptr) == 0)
+                                        {
+                                            FILE *fp = fopen(path_ptr, "wb");
+                                            if(fp == NULL)
+                                            {
+                                                LOG("client fd is %d, create file failed: %s", client_sock_fd_a[client_i], path_ptr);
+                                            }
+                                            else
+                                            {
+                                                memcpy(&(client_file_info_a[client_i].remain_size), buffer + strlen(CIPHER1), sizeof(long));
+                                                client_file_info_a[client_i].fp = fp;
+                                                send(client_sock_fd_a[client_i], CIPHER2, strlen(CIPHER2), 0);
+                                                LOG("client fd is %d, create file successfully: %s, %ld", client_sock_fd_a[client_i], path_ptr, client_file_info_a[client_i].remain_size);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            LOG("client fd is %d, create dir failed: %s", client_sock_fd_a[client_i], path_ptr);
+                                        }
                                     }
                                 }
                                 else
                                 {
+                                    // set heart beat time
+                                    client_sock_heart_beat[client_i] = timestamp();
                                     if(client_file_info_a[client_i].remain_size > 0)
                                     {
                                         fwrite(buffer, 1, receive_size, client_file_info_a[client_i].fp);
