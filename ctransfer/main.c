@@ -264,11 +264,7 @@ void transfer()
             if(cur_timestamp - last_timestamp >= 30)
             {
                 last_timestamp = cur_timestamp;
-                int buffer_len = strlen(CIPHER4) + sizeof(long);
-                bzero(buffer, BUFFER_SIZE);
-                memcpy(buffer, CIPHER4, strlen(CIPHER4));
-                memcpy(buffer + strlen(CIPHER4), &cur_timestamp, sizeof(long));
-                if(send(client_sock_fd, buffer, buffer_len, 0) == -1)
+                if(send(client_sock_fd, CIPHER4, strlen(CIPHER4), 0) == -1)
                 {
                     LOG("send heart beat failed: %s", strerror(errno));
                 }
