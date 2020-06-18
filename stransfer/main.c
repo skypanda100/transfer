@@ -137,6 +137,7 @@ void check_heart_beat()
         {
             if((cur_timestamp - client_sock_heart_beat[client_i]) > timeout)
             {
+                LOG("clear socket, client id is %d!", client_sock_fd_a[client_i]);
                 cancel_event_poll(client_sock_fd_a[client_i]);
             }
         }
@@ -228,6 +229,9 @@ void do_event_poll()
                         int client_i = index_of_client_sock_fd_a(event_poll_event[i].data.fd);
                         if(client_i >= 0)
                         {
+                            // set heart beat time
+                            client_sock_heart_beat[client_i] = timestamp();
+
                             // check key
                             if(client_file_info_a[client_i].is_login == 0)
                             {
@@ -252,14 +256,11 @@ void do_event_poll()
                                 {
                                     if(strncmp(CIPHER4, buffer, strlen(CIPHER4)) == 0)
                                     {
-                                        // set heart beat time
-                                        memcpy(&(client_sock_heart_beat[client_i]), buffer + strlen(CIPHER4), sizeof(long));
+                                        LOG("receive heart beat from client %d!", client_sock_fd_a[client_i]);
                                         send(client_sock_fd_a[client_i], CIPHER2, strlen(CIPHER2), 0);
                                     }
                                     else
                                     {
-                                        // set heart beat time
-                                        client_sock_heart_beat[client_i] = timestamp();
                                         char *path_ptr = buffer + strlen(CIPHER1) + sizeof(long);
                                         if(create_dir(path_ptr) == 0)
                                         {
@@ -284,8 +285,6 @@ void do_event_poll()
                                 }
                                 else
                                 {
-                                    // set heart beat time
-                                    client_sock_heart_beat[client_i] = timestamp();
                                     if(client_file_info_a[client_i].remain_size > 0)
                                     {
                                         fwrite(buffer, 1, receive_size, client_file_info_a[client_i].fp);
