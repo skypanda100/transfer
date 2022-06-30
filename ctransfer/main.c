@@ -73,6 +73,7 @@ void transfer()
     // transfer file
     FILE *transfer_fp = NULL;
     long transfer_size = 0;
+    long remain_size = 0;
     int transfer_index = 0;
     int is_transferring = 0;
     // temp files
@@ -162,6 +163,7 @@ void transfer()
                     {
                         fseek(transfer_fp, 0L, SEEK_END);
                         transfer_size = ftell(transfer_fp);
+                        remain_size = transfer_size;
                         fseek(transfer_fp, 0L, SEEK_SET);
 
                         if(transfer_size > 0)
@@ -222,6 +224,14 @@ void transfer()
                             if(send(client_sock_fd, buffer, len, 0) == -1)
                             {
                                 LOG("send file failed: %s", strerror(errno));
+                            }
+                            else
+                            {
+                                remain_size -= len;
+                                if(remain_size <= 0)
+                                {
+                                    is_done = 1;
+                                }
                             }
                         }
                         else
